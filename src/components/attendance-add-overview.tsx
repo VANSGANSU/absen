@@ -44,7 +44,6 @@ type MemberItem = {
   initials: string
 }
 
-// Data member awal
 const members: MemberItem[] = [
   { id: "rery",  name: "ReryAhmad", department: "Absensi", avatar: "", initials: "R" },
   { id: "riflo", name: "Riflo",     department: "Qurani",  initials: "R" },
@@ -153,6 +152,9 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
   // Session remarks (notes) – UI only, not saved to store
   const [remarks, setRemarks] = React.useState("")
 
+  // Retroactive modal state
+  const [isRetroModalOpen, setIsRetroModalOpen] = React.useState(false)
+
   // Live clock (HH:MM:SS)
   const [liveClock, setLiveClock] = React.useState(() => new Date().toLocaleTimeString("en-GB", { hour12: false }))
   React.useEffect(() => {
@@ -177,6 +179,13 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
 
   // Reset time fields when member changes (single mode)
   React.useEffect(() => { setTimeFields(emptyTimeFields) }, [selectedMemberId])
+
+  // Open retro modal when switching to retroactive mode and member selected
+  React.useEffect(() => {
+    if (entryMode === "single" && timingMode === "retroactive" && selectedMember) {
+      setIsRetroModalOpen(true)
+    }
+  }, [timingMode, selectedMember, entryMode])
 
   // ── Check existing attendance records to prevent duplicate ──────────────────
   const existingRecords = React.useMemo(() => loadAttendanceRecords(), [])
@@ -281,6 +290,11 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
     ])
     setSubmitSuccess(true)
     window.setTimeout(() => { router.push("/dashboard/attendance/list"); router.refresh() }, 600)
+  }
+
+  const handleRetroSubmit = () => {
+    setIsRetroModalOpen(false)
+    handleSingleSubmit()
   }
 
   const handleBatchSubmit = () => {
@@ -690,7 +704,7 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
                           })}
                         </div>
 
-                        {/* Status info (check-in / break availability) */}
+                        {/* Status info */}
                         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                           <div className="flex items-center justify-between text-sm">
                             <span className="font-medium text-slate-700">
@@ -746,48 +760,14 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
                         </div>
                       </div>
                     ) : (
-                      /* ── Retroactive form (unchanged) ── */
-                      <>
-                        <p className="text-[0.95rem] text-slate-500">
-                          Enter times manually for each event.
-                        </p>
-                        <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-5">
-                          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                            {timeInputConfigs.map((item) => (
-                              <div key={item.label} className="space-y-1.5">
-                                <label className="flex items-center gap-1.5 text-[0.85rem] font-semibold uppercase tracking-[0.08em] text-slate-500">
-                                  <item.icon className="size-3.5" />
-                                  {item.label}
-                                </label>
-                                <input
-                                  type="time"
-                                  value={timeFields[item.field]}
-                                  onChange={(e) => updateTimeField(item.field, e.target.value)}
-                                  className="w-full rounded-[0.75rem] border border-slate-200 bg-white px-3 py-2.5 text-center text-[1rem] text-slate-950 shadow-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                />
-                              </div>
-                            ))}
-                          </div>
+                      /* ── RETROACTIVE MODE (will show modal) ── */
+                      <div className="relative space-y-5">
+                        {/* Placeholder message while modal is open, or show something else */}
+                        <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+                          <p className="text-slate-500">Retroactive mode selected.</p>
+                          <p className="mt-2 text-sm text-slate-400">Please fill in the time form that appears.</p>
                         </div>
-                        {/* Submit bar for retroactive */}
-                        <div className="flex items-center justify-between gap-4 rounded-[1rem] bg-slate-50 px-5 py-4">
-                          <div>
-                            <p className="text-[1.05rem] font-semibold text-slate-950">{selectedMember.name}</p>
-                            <p className="text-[0.9rem] uppercase tracking-[0.08em] text-slate-400">
-                              {selectedMember.department} · {formatInputDate(selectedDate)}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={handleSingleSubmit}
-                            disabled={isSubmitting || !timeFields.checkIn || memberHasRecordOnDate(selectedMember.id)}
-                            className="inline-flex items-center gap-2 rounded-[0.95rem] bg-black px-6 py-3 text-[1.05rem] font-medium text-white transition disabled:opacity-60"
-                          >
-                            <Save className="size-5" />
-                            {submitSuccess ? "Saved!" : isSubmitting ? "Saving..." : "Submit Entry"}
-                          </button>
-                        </div>
-                      </>
+                      </div>
                     )}
                   </div>
                 ) : (
@@ -889,6 +869,66 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
           </div>
         </div>
       </section>
+
+      {/* ── RETROACTIVE MODAL ── */}
+      {isRetroModalOpen && selectedMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-slate-900">Retroactive Entry</h2>
+              <button
+                onClick={() => {
+                  setIsRetroModalOpen(false)
+                  setTimingMode("realtime") // fallback
+                }}
+                className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <p className="mb-4 text-sm text-slate-600">
+              Enter times manually for {selectedMember.name} on {formatInputDate(selectedDate)}
+            </p>
+
+            <div className="grid grid-cols-2 gap-4">
+              {timeInputConfigs.map((item) => (
+                <div key={item.field} className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-slate-600">
+                    <item.icon className="size-4" />
+                    {item.label}
+                  </label>
+                  <input
+                    type="time"
+                    value={timeFields[item.field]}
+                    onChange={(e) => updateTimeField(item.field, e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-center text-base focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setIsRetroModalOpen(false)
+                  setTimingMode("realtime")
+                }}
+                className="rounded-lg px-4 py-2 text-slate-600 hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRetroSubmit}
+                disabled={!timeFields.checkIn || isSubmitting}
+                className="rounded-lg bg-black px-6 py-2 font-medium text-white disabled:opacity-50"
+              >
+                {isSubmitting ? "Saving..." : "Submit Entry"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
