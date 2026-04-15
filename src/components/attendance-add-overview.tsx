@@ -177,6 +177,9 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
     return () => window.removeEventListener("mousedown", handleDown)
   }, [])
 
+  // ── selectedMember dideklarasikan di sini ───────────────────────────────────
+  const selectedMember = members.find((m) => m.id === selectedMemberId) ?? null
+
   // Reset time fields when member changes (single mode)
   React.useEffect(() => { setTimeFields(emptyTimeFields) }, [selectedMemberId])
 
@@ -235,8 +238,6 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
         : m.department === selectedDepartment
     return matchesSearch && matchesDept
   })
-
-  const selectedMember = members.find((m) => m.id === selectedMemberId) ?? null
 
   const calendarDate  = React.useMemo(() => new Date(`${selectedDate}T09:00:00+07:00`), [selectedDate])
   const calendarCells = React.useMemo(() => getCalendarCells(calendarDate), [calendarDate])
@@ -879,7 +880,7 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
               <button
                 onClick={() => {
                   setIsRetroModalOpen(false)
-                  setTimingMode("realtime") // fallback
+                  setTimingMode("realtime")
                 }}
                 className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
               >
