@@ -2,25 +2,99 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #000000;
+  --border: #e5e7eb;
+  --muted: #f8fafc;
+  --muted-foreground: #64748b;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #0f172a;
+  --sidebar-accent: #f3f4f6;
+  --sidebar-accent-foreground: #0f172a;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-mono: "Courier New", Courier, monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.dashboard-ui :where(
+  section[class*="rounded-[1.75rem]"][class*="border"][class*="bg-white"],
+  div[class*="rounded-[1.5rem]"][class*="border"][class*="bg-white"],
+  div[class*="rounded-[1.25rem]"][class*="border"][class*="bg-white"],
+  div[class*="rounded-[1rem]"][class*="border"][class*="bg-white"],
+  article[class*="rounded-[1.5rem]"][class*="border"][class*="bg-white"],
+  article[class*="rounded-[1rem]"][class*="border"][class*="bg-white"],
+  aside[class*="rounded-[1.5rem]"][class*="border"][class*="bg-white"],
+  aside[class*="rounded-[1rem]"][class*="border"][class*="bg-white"]
+) {
+  transition:
+    box-shadow 0.22s ease,
+    transform 0.22s ease,
+    border-color 0.22s ease;
+}
+
+@media (hover: hover) {
+  .dashboard-ui :where(
+    section[class*="rounded-[1.75rem]"][class*="border"][class*="bg-white"],
+    div[class*="rounded-[1.5rem]"][class*="border"][class*="bg-white"],
+    div[class*="rounded-[1.25rem]"][class*="border"][class*="bg-white"],
+    div[class*="rounded-[1rem]"][class*="border"][class*="bg-white"],
+    article[class*="rounded-[1.5rem]"][class*="border"][class*="bg-white"],
+    article[class*="rounded-[1rem]"][class*="border"][class*="bg-white"],
+    aside[class*="rounded-[1.5rem]"][class*="border"][class*="bg-white"],
+    aside[class*="rounded-[1rem]"][class*="border"][class*="bg-white"]
+  ):hover {
+    border-color: #d9e0ea;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes home-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.home-rise-in {
+  opacity: 0;
+  transform: translateY(32px);
+  will-change: transform, opacity;
+}
+
+.home-rise-in.is-visible {
+  animation: home-rise-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-rise-in {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
 }
