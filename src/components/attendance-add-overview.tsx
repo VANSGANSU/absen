@@ -13,13 +13,11 @@ import {
   LogOut,
   Save,
   Search,
-  TriangleAlert,
   UserPlus,
   UsersRound,
   X,
   Loader2,
   Plus,
-  CheckCircle,
 } from "lucide-react"
 import {
   computeStatus,
@@ -47,10 +45,14 @@ type MemberItem = {
 }
 
 const members: MemberItem[] = [
-  { id: "rery",  name: "ReryAhmad", department: "Absensi", avatar: "", initials: "R" },
-  { id: "riflo", name: "Riflo",     department: "Qurani",  initials: "R" },
-  { id: "miaw",  name: "Miaw",      department: "General", initials: "M" },
-  { id: "yayan", name: "Yayan",     department: "General", initials: "Y" },
+  { id: "hans",  name: "Hans", department: "Absensi", initials: "H" },
+  { id: "kharish", name: "A. KHARISH FIKRI DZULFAHMI", department: "General", initials: "AK" },
+  { id: "aaliyah", name: "Aaliyah Shafa Hafizah", department: "General", initials: "AS" },
+  { id: "abdillah", name: "Abdillah Tsaqif Alfa Rossy", department: "General", initials: "AT" },
+  { id: "abel", name: "ABEL KRISTIAN YULIADI", department: "General", initials: "AK" },
+  { id: "abim", name: "ABIM AHMAD FUBILLAH", department: "General", initials: "AA" },
+  { id: "abizar1", name: "Abizar Awfarizi", department: "General", initials: "AA" },
+  { id: "abizar2", name: "ABIZAR DANU FIRMANSYAH", department: "General", initials: "AD" },
 ]
 
 const departmentOptions: DepartmentOption[] = [
@@ -135,6 +137,7 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
   const [entryMode, setEntryMode]       = React.useState<EntryMode>("single")
   const [timingMode, setTimingMode]     = React.useState<TimingMode>("realtime")
   const [searchQuery, setSearchQuery]   = React.useState("")
+  const [selectedMemberId, setSelectedMemberId] = React.useState<string | null>(null)
   const [selectedDepartment, setSelectedDepartment] = React.useState<DepartmentOption>("All Departments")
   const [selectedDate, setSelectedDate]             = React.useState(initialDate)
   const [isDepartmentOpen, setIsDepartmentOpen]     = React.useState(false)
@@ -144,14 +147,21 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
   const [isSubmitting, setIsSubmitting]   = React.useState(false)
   const [submitSuccess, setSubmitSuccess] = React.useState(false)
 
-  // Single-entry: no selected member, we handle per member directly
-  const [singleCheckInLoading, setSingleCheckInLoading] = React.useState<string | null>(null)
+  // Single-entry time fields
+  const [timeFields, setTimeFields] = React.useState<TimeFields>(emptyTimeFields)
+
+  // Loading state for realtime stamp actions (3-second delay)
+  const [loadingAction, setLoadingAction] = React.useState<keyof TimeFields | null>(null)
+
+  // Session remarks (notes) – UI only, not saved to store
   const [remarks, setRemarks] = React.useState("")
 
-  // Live clock
-  const [liveClock, setLiveClock] = React.useState(getCurrentTime)
+  // Live clock for realtime preview (updates every second)
+  const [liveClock, setLiveClock] = React.useState(() => new Date().toLocaleTimeString("en-GB", { hour12: false }))
   React.useEffect(() => {
-    const id = window.setInterval(() => setLiveClock(getCurrentTime()), 1000)
+    const id = window.setInterval(() => {
+      setLiveClock(new Date().toLocaleTimeString("en-GB", { hour12: false }))
+    }, 1000)
     return () => clearInterval(id)
   }, [])
 
@@ -168,24 +178,70 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
     return () => window.removeEventListener("mousedown", handleDown)
   }, [])
 
-  // Load existing records for the selected date
-  const existingRecords = React.useMemo(() => {
-    const all = loadAttendanceRecords()
-    return all.filter(r => r.date === selectedDate)
-  }, [selectedDate])
+  // Reset time fields when member changes (single mode)
+  React.useEffect(() => { setTimeFields(emptyTimeFields) }, [selectedMemberId])
 
-  const hasRecord = (memberId: string) => existingRecords.some(r => r.memberId === memberId)
-  const getRecord = (memberId: string) => existingRecords.find(r => r.memberId === memberId)
+  // ── Check existing attendance records to prevent duplicate ──────────────────
+  const existingRecords = React.useMemo(() => loadAttendanceRecords(), [])
+  const memberHasRecordOnDate = React.useCallback(
+    (memberId: string) => existingRecords.some(r => r.memberId === memberId && r.date === selectedDate),
+    [existingRecords, selectedDate]
+  )
+
+  // ── Business rules for realtime stamp availability ──────────────────────────
+  const canPerform = React.useCallback(
+    (field: keyof TimeFields): boolean => {
+      const { checkIn, breakIn } = timeFields
+      const now = new Date()
+      const currentMinutes = now.getHours() * 60 + now.getMinutes()
+      const isBreakTime = currentMinutes >= 7 * 60 + 35 && currentMinutes <= 13 * 60
+
+      switch (field) {
+        case "checkIn":
+          return true
+        case "breakIn":
+          return !!checkIn && isBreakTime
+        case "breakOut":
+          return !!breakIn
+        case "checkOut":
+          return !!checkIn
+        default:
+          return false
+      }
+    },
+    [timeFields]
+  )
+
+  const handleStamp = (field: keyof TimeFields) => {
+    if (loadingAction || !canPerform(field)) return
+    setLoadingAction(field)
+    setTimeout(() => {
+      setTimeFields((prev) => ({ ...prev, [field]: getCurrentTime() }))
+      setLoadingAction(null)
+    }, 3000)
+  }
 
   const filteredMembers = members.filter((m) => {
     const matchesSearch = m.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
-    const matchesDept = selectedDepartment === "All Departments" ? true : m.department === selectedDepartment
+    const matchesDept =
+      entryMode === "single" || selectedDepartment === "All Departments"
+        ? true
+        : m.department === selectedDepartment
     return matchesSearch && matchesDept
   })
 
+  const selectedMember = members.find((m) => m.id === selectedMemberId) ?? null
+  const currentTimeLabel = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false, timeZone: "Asia/Jakarta",
+  }).format(new Date())
+
   const calendarDate  = React.useMemo(() => new Date(`${selectedDate}T09:00:00+07:00`), [selectedDate])
   const calendarCells = React.useMemo(() => getCalendarCells(calendarDate), [calendarDate])
-  const addableCount  = filteredMembers.filter((m) => !addedBatchMembers.includes(m.id) && !hasRecord(m.id)).length
+  const addableCount  = filteredMembers.filter((m) => !addedBatchMembers.includes(m.id) && !memberHasRecordOnDate(m.id)).length
+
+  const updateTimeField = (field: keyof TimeFields, value: string) =>
+    setTimeFields((prev) => ({ ...prev, [field]: value }))
 
   const updateBatchMemberTime = (memberId: string, field: keyof TimeFields, value: string) =>
     setBatchMemberTimes((prev) => ({
@@ -197,47 +253,55 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
     batchMemberTimes[memberId] ?? emptyTimeFields
 
   const toggleBatchMember = (memberId: string) => {
-    if (hasRecord(memberId)) return // cannot add if already has record
+    if (memberHasRecordOnDate(memberId)) return // cannot add if already recorded
     setAddedBatchMembers((cur) =>
       cur.includes(memberId) ? cur.filter((id) => id !== memberId) : [...cur, memberId]
     )
   }
 
-  // ── Single Entry: handle check-in for a member ────────────────────────────────
-  const handleSingleCheckIn = (memberId: string) => {
-    if (hasRecord(memberId) || singleCheckInLoading) return
-    setSingleCheckInLoading(memberId)
-    setTimeout(() => {
-      const member = members.find(m => m.id === memberId)!
-      const now = getCurrentTime()
-      const existing = loadAttendanceRecords()
-      const newRecord: AttendanceRecordEntry = {
+  // ── Submit handlers ───────────────────────────────────────────────────────────
+  const handleSingleSubmit = () => {
+    if (!selectedMember) return
+    if (memberHasRecordOnDate(selectedMember.id)) {
+      alert("This member already has an attendance record for this date.")
+      return
+    }
+    setIsSubmitting(true)
+    const existing = loadAttendanceRecords()
+    const checkIn  = timeFields.checkIn  || null
+    const checkOut = timeFields.checkOut || null
+    persistAttendanceRecords([
+      {
         id: `rec_${Date.now()}`,
-        memberId: member.id,
-        memberName: member.name,
-        memberDepartment: member.department,
+        memberId: selectedMember.id,
+        memberName: selectedMember.name,
+        memberDepartment: selectedMember.department,
         date: selectedDate,
-        checkIn: now,
-        breakIn: null,
-        breakOut: null,
-        checkOut: null,
-        status: computeStatus(now),
-        workHours: computeWorkHours(now, null),
-      }
-      persistAttendanceRecords([newRecord, ...existing])
-      setSingleCheckInLoading(null)
-      setSubmitSuccess(true)
-      // Optionally refresh data
-      setTimeout(() => setSubmitSuccess(false), 2000)
-    }, 3000)
+        checkIn,
+        breakIn:  timeFields.breakIn  || null,
+        breakOut: timeFields.breakOut || null,
+        checkOut,
+        status:    computeStatus(checkIn),
+        workHours: computeWorkHours(checkIn, checkOut),
+      } satisfies AttendanceRecordEntry,
+      ...existing,
+    ])
+    setSubmitSuccess(true)
+    window.setTimeout(() => { router.push("/dashboard/attendance/list"); router.refresh() }, 600)
   }
 
   const handleBatchSubmit = () => {
     if (!addedBatchMembers.length) return
+    // Filter out members that already have a record (just in case)
+    const validMembers = addedBatchMembers.filter(id => !memberHasRecordOnDate(id))
+    if (validMembers.length === 0) {
+      alert("All selected members already have attendance records for this date.")
+      return
+    }
     setIsSubmitting(true)
     const existing = loadAttendanceRecords()
     const now = getCurrentTime()
-    const newRecords: AttendanceRecordEntry[] = addedBatchMembers.map((memberId) => {
+    const newRecords: AttendanceRecordEntry[] = validMembers.map((memberId) => {
       const member  = members.find((m) => m.id === memberId)!
       const times   = getBatchMemberTime(memberId)
       const checkIn  = timingMode === "realtime" ? now    : (times.checkIn  || null)
@@ -261,6 +325,7 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
     window.setTimeout(() => { router.push("/dashboard/attendance/list"); router.refresh() }, 600)
   }
 
+  // ── Reusable timing mode toggle ───────────────────────────────────────────────
   const TimingModeToggle = () => (
     <div className="inline-flex rounded-[0.95rem] border border-slate-200 bg-white p-1">
       {(["realtime", "retroactive"] as TimingMode[]).map((mode) => (
@@ -269,6 +334,7 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
           type="button"
           onClick={() => {
             setTimingMode(mode)
+            setTimeFields(emptyTimeFields)
             setBatchMemberTimes({})
           }}
           className={`rounded-[0.85rem] px-4 py-2 text-[1.05rem] font-medium transition ${
@@ -281,9 +347,10 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
     </div>
   )
 
-  const MemberAvatar = ({ member, isAdded }: { member: MemberItem; isAdded?: boolean }) =>
+  // ── Member avatar ─────────────────────────────────────────────────────────────
+  const MemberAvatar = ({ member, isAdded, isDisabled }: { member: MemberItem; isAdded?: boolean; isDisabled?: boolean }) =>
     member.avatar ? (
-      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-slate-100">
+      <div className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-slate-100 ${isDisabled ? "opacity-50" : ""}`}>
         <img src={member.avatar} alt={member.name} className="h-full w-full object-cover" />
         {isAdded && (
           <div className="absolute inset-0 flex items-center justify-center rounded-full bg-blue-600/80">
@@ -293,12 +360,14 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
       </div>
     ) : (
       <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full border text-[1.05rem] transition ${
+        isDisabled ? "border-slate-200 bg-slate-100 text-slate-400" :
         isAdded ? "border-blue-400 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-500"
       }`}>
         {isAdded ? <X className="size-4" /> : member.initials}
       </div>
     )
 
+  // ── Calendar dropdown ─────────────────────────────────────────────────────────
   const CalendarDropdown = () => (
     <div ref={calendarRef} className="relative">
       <button
@@ -353,6 +422,7 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
     </div>
   )
 
+  // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       <section className="rounded-[1.75rem] border border-slate-200 bg-white p-4 sm:p-6">
@@ -402,21 +472,11 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
                   ? "Real-time mode: Check-in time is automatically set to now() on submit."
                   : "Retroactive mode: Fill in times manually for each member."}
               </p>
-              {/* Progress for batch */}
-              <div className="flex items-center gap-2 text-sm">
-                <span className="font-medium">{addedBatchMembers.length}/{filteredMembers.filter(m => !hasRecord(m.id)).length} selected</span>
-                <div className="h-1.5 flex-1 rounded-full bg-slate-200">
-                  <div
-                    className="h-full rounded-full bg-blue-600"
-                    style={{ width: `${(addedBatchMembers.length / (filteredMembers.filter(m => !hasRecord(m.id)).length || 1)) * 100}%` }}
-                  />
-                </div>
-              </div>
             </div>
           )}
 
           <div className="grid gap-6 xl:grid-cols-[21rem_1fr]">
-            {/* Sidebar */}
+            {/* ── Sidebar ── */}
             <aside className="border-r border-slate-200 pr-0 xl:pr-6">
               <div className="space-y-3">
                 <div className="flex items-center rounded-[0.95rem] border border-slate-200 bg-white px-4 py-3">
@@ -473,7 +533,9 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
                       onClick={() =>
                         setAddedBatchMembers((cur) => [
                           ...cur,
-                          ...filteredMembers.map((m) => m.id).filter((id) => !cur.includes(id) && !hasRecord(id)),
+                          ...filteredMembers
+                            .map((m) => m.id)
+                            .filter((id) => !cur.includes(id) && !memberHasRecordOnDate(id)),
                         ])
                       }
                       className="inline-flex w-full items-center justify-center gap-2 rounded-[999px] border border-slate-200 bg-white px-4 py-3 text-[1.05rem] font-medium text-slate-950 disabled:text-slate-400"
@@ -485,166 +547,282 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
                 )}
               </div>
 
-              {/* Member list for batch mode (unchanged) */}
-              {entryMode === "batch" && (
-                <div className="mt-5 space-y-2">
-                  {filteredMembers.map((member) => {
-                    const isAddedBatch = addedBatchMembers.includes(member.id)
-                    const isDuplicate = hasRecord(member.id)
-                    return (
-                      <button
-                        key={member.id}
-                        type="button"
-                        onClick={() => toggleBatchMember(member.id)}
-                        disabled={isDuplicate}
-                        className={`flex w-full items-center gap-4 rounded-[1rem] px-3 py-3 text-left transition ${
-                          isDuplicate
-                            ? "opacity-50 cursor-not-allowed bg-slate-50"
+              {/* Member list */}
+              <div className="mt-5 space-y-2">
+                {filteredMembers.map((member) => {
+                  const isSelectedSingle = selectedMemberId === member.id
+                  const isAddedBatch     = addedBatchMembers.includes(member.id)
+                  const hasRecord        = memberHasRecordOnDate(member.id)
+                  const isDisabled       = hasRecord
+
+                  return (
+                    <button
+                      key={member.id}
+                      type="button"
+                      disabled={isDisabled}
+                      onClick={() =>
+                        entryMode === "single"
+                          ? !isDisabled && setSelectedMemberId(member.id)
+                          : toggleBatchMember(member.id)
+                      }
+                      className={`flex w-full items-center gap-4 rounded-[1rem] px-3 py-3 text-left transition ${
+                        isDisabled
+                          ? "cursor-not-allowed opacity-50"
+                          : entryMode === "single"
+                            ? isSelectedSingle ? "bg-slate-100" : "hover:bg-slate-50"
                             : isAddedBatch
                               ? "bg-blue-50 ring-1 ring-blue-200"
                               : "hover:bg-slate-50"
-                        }`}
-                      >
-                        <MemberAvatar member={member} isAdded={isAddedBatch} />
-                        <div className="min-w-0 flex-1">
-                          <p className={`text-[1.05rem] font-semibold ${isAddedBatch ? "text-blue-700" : "text-slate-950"}`}>
-                            {member.name}
-                          </p>
-                          <p className="text-[0.95rem] uppercase tracking-[0.08em] text-slate-400">
-                            {member.department}
-                          </p>
-                          {isDuplicate && (
-                            <p className="text-xs text-red-500 mt-0.5">Duplicate</p>
-                          )}
-                        </div>
-                        {!isDuplicate && (
-                          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                            isAddedBatch ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
-                          }`}>
-                            {isAddedBatch ? "Added" : "Add"}
-                          </span>
+                      }`}
+                    >
+                      <MemberAvatar member={member} isAdded={entryMode === "batch" && isAddedBatch} isDisabled={isDisabled} />
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-[1.05rem] font-semibold ${
+                          isDisabled ? "text-slate-400" :
+                          entryMode === "batch" && isAddedBatch ? "text-blue-700" : "text-slate-950"
+                        }`}>
+                          {member.name}
+                        </p>
+                        <p className="text-[0.95rem] uppercase tracking-[0.08em] text-slate-400">
+                          {member.department}
+                        </p>
+                        {isDisabled && (
+                          <p className="mt-1 text-xs font-medium text-red-500">Already recorded</p>
                         )}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
+                      </div>
+                      {entryMode === "batch" && !isDisabled && (
+                        <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          isAddedBatch ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+                        }`}>
+                          {isAddedBatch ? "Added" : "Add"}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
             </aside>
 
-            {/* Main panel */}
+            {/* ── Main panel ── */}
             <div className="min-h-[34rem] rounded-[1.5rem] border border-dashed border-slate-300 bg-white p-5">
+
+              {/* ════ SINGLE ENTRY ════ */}
               {entryMode === "single" ? (
-                /* ── SINGLE ENTRY NEW LAYOUT ── */
-                <div className="space-y-6">
-                  {/* Shift header */}
-                  <div className="flex items-center justify-between rounded-[1.25rem] border border-slate-200 bg-slate-50/80 p-5">
-                    <div>
-                      <div className="text-[1.4rem] font-semibold tracking-tight text-slate-900">
-                        07:30 - 19:00
-                      </div>
-                      <div className="mt-0.5 text-[0.95rem] font-medium uppercase tracking-wider text-slate-500">
-                        BREAK 07:35 - 13:00
-                      </div>
+                selectedMember ? (
+                  <div className="space-y-5">
+                    {/* Timing mode toggle */}
+                    <div className="flex items-center justify-between">
+                      <p className="text-[1.05rem] font-medium text-slate-900">Input Mode</p>
+                      <TimingModeToggle />
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm uppercase tracking-wider text-slate-400">Current time</div>
-                      <div className="text-4xl font-light tabular-nums tracking-tight text-slate-900">
-                        {liveClock}
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Member list */}
-                  <div className="space-y-3">
-                    {filteredMembers.map((member) => {
-                      const record = getRecord(member.id)
-                      const isCheckedIn = !!record
-                      const isLoading = singleCheckInLoading === member.id
-
-                      if (isCheckedIn) {
-                        // Already checked in
-                        return (
-                          <div
-                            key={member.id}
-                            className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-4 opacity-60"
-                          >
-                            <div className="flex items-center gap-4">
-                              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-700">
-                                <CheckCircle className="size-6" />
-                              </div>
-                              <div>
-                                <div className="text-[1.1rem] font-semibold text-slate-800">{member.name}</div>
-                                <div className="text-sm uppercase text-slate-500">{member.department}</div>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm text-slate-500">Checked in at</div>
-                              <div className="text-xl font-mono font-medium text-slate-900">{record.checkIn}</div>
+                    {timingMode === "realtime" ? (
+                      /* ── NEW REAL‑TIME LAYOUT (VERTICAL STAMPS) ── */
+                      <div className="relative space-y-5">
+                        {/* Loading overlay (semi‑transparent grey) */}
+                        {loadingAction && (
+                          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[1.5rem] bg-slate-900/20 backdrop-blur-[1px]">
+                            <div className="flex items-center gap-3 rounded-full bg-white/90 px-6 py-3 shadow-lg">
+                              <Loader2 className="size-6 animate-spin text-blue-600" />
+                              <span className="text-[1.1rem] font-medium text-slate-700">
+                                Recording {loadingAction}...
+                              </span>
                             </div>
                           </div>
-                        )
-                      } else {
-                        // Not checked in yet
-                        return (
-                          <div
-                            key={member.id}
-                            className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4"
-                          >
-                            <div className="flex items-center gap-4">
-                              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500">
-                                {member.initials}
-                              </div>
-                              <div>
-                                <div className="text-[1.1rem] font-semibold text-slate-800">{member.name}</div>
-                                <div className="text-sm uppercase text-slate-500">{member.department}</div>
-                              </div>
+                        )}
+
+                        {/* Header: Shift info & live clock */}
+                        <div className="flex items-center justify-between rounded-[1.25rem] border border-slate-200 bg-slate-50/80 p-5">
+                          <div>
+                            <div className="text-[1.4rem] font-semibold tracking-tight text-slate-900">
+                              07:30 - 19:00
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => handleSingleCheckIn(member.id)}
-                              disabled={isLoading}
-                              className="flex h-12 min-w-[120px] items-center justify-center gap-2 rounded-full bg-blue-600 px-6 font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
-                            >
-                              {isLoading ? (
-                                <>
-                                  <Loader2 className="size-4 animate-spin" />
-                                  Checking in...
-                                </>
+                            <div className="mt-0.5 text-[0.95rem] font-medium uppercase tracking-wider text-slate-500">
+                              BREAK 07:35 - 13:00
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm uppercase tracking-wider text-slate-400">Current time</div>
+                            <div className="text-4xl font-light tabular-nums tracking-tight text-slate-900">
+                              {liveClock}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Stamp list (vertical) */}
+                        <div className="space-y-3">
+                          {timeInputConfigs.map((item) => {
+                            const filled = !!timeFields[item.field]
+                            const isDisabled = !canPerform(item.field) || !!loadingAction
+                            const isLoading = loadingAction === item.field
+                            const Icon = item.icon
+
+                            return (
+                              <div
+                                key={item.field}
+                                className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4"
+                              >
+                                <div className="flex items-center gap-4">
+                                  <div className={`rounded-full p-2 ${
+                                    filled ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-500"
+                                  }`}>
+                                    <Icon className="size-5" />
+                                  </div>
+                                  <div>
+                                    <div className="text-[1.1rem] font-semibold uppercase tracking-wide text-slate-800">
+                                      {item.label}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                  <div className={`text-xl font-mono font-medium ${
+                                    filled ? "text-slate-900" : "text-slate-400"
+                                  }`}>
+                                    {timeFields[item.field] || "--:--"}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStamp(item.field)}
+                                    disabled={isDisabled}
+                                    className={`flex h-10 w-10 items-center justify-center rounded-full transition ${
+                                      isDisabled
+                                        ? "bg-slate-100 text-slate-300 cursor-not-allowed"
+                                        : "bg-blue-50 text-blue-600 hover:bg-blue-100"
+                                    }`}
+                                  >
+                                    {isLoading ? (
+                                      <Loader2 className="size-5 animate-spin" />
+                                    ) : (
+                                      <Plus className="size-5" />
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+
+                        {/* Status info (check-in / break availability) */}
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="font-medium text-slate-700">
+                              {timeFields.checkIn ? (
+                                <>Check‑in recorded at {timeFields.checkIn}</>
                               ) : (
-                                "CHECK IN"
+                                "Not checked in"
                               )}
-                            </button>
+                            </span>
+                            <span className="text-slate-500">
+                              {(() => {
+                                const now = new Date()
+                                const mins = now.getHours() * 60 + now.getMinutes()
+                                if (mins < 7*60+35) return "Break starts at 07:35"
+                                if (mins <= 13*60) return "Break available now"
+                                return "Break period ended"
+                              })()}
+                            </span>
                           </div>
-                        )
-                      }
-                    })}
-                  </div>
+                        </div>
 
-                  {/* Remarks and submit (if needed, but single entry is per member) */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold uppercase tracking-wider text-slate-500">
-                      SESSION REMARKS
-                    </label>
-                    <textarea
-                      value={remarks}
-                      onChange={(e) => setRemarks(e.target.value)}
-                      placeholder="Notes (optional)..."
-                      rows={2}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-[1.05rem] placeholder:text-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    />
+                        {/* Session Remarks */}
+                        <div className="space-y-2">
+                          <label className="text-sm font-semibold uppercase tracking-wider text-slate-500">
+                            SESSION REMARKS
+                          </label>
+                          <textarea
+                            value={remarks}
+                            onChange={(e) => setRemarks(e.target.value)}
+                            placeholder="Notes (optional)..."
+                            rows={2}
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-[1.05rem] placeholder:text-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+
+                        {/* Submit bar */}
+                        <div className="flex items-center justify-between gap-4 rounded-[1rem] bg-slate-50 px-5 py-4">
+                          <div>
+                            <p className="text-[1.05rem] font-semibold text-slate-950">{selectedMember.name}</p>
+                            <p className="text-[0.9rem] uppercase tracking-[0.08em] text-slate-400">
+                              {selectedMember.department} · {formatInputDate(selectedDate)}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleSingleSubmit}
+                            disabled={isSubmitting || !timeFields.checkIn || memberHasRecordOnDate(selectedMember.id)}
+                            className="inline-flex items-center gap-2 rounded-[0.95rem] bg-black px-6 py-3 text-[1.05rem] font-medium text-white transition disabled:opacity-60"
+                          >
+                            <Save className="size-5" />
+                            {submitSuccess ? "Saved!" : isSubmitting ? "Saving..." : "Submit Entry"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* ── Retroactive form (unchanged) ── */
+                      <>
+                        <p className="text-[0.95rem] text-slate-500">
+                          Enter times manually for each event.
+                        </p>
+                        <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-5">
+                          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                            {timeInputConfigs.map((item) => (
+                              <div key={item.label} className="space-y-1.5">
+                                <label className="flex items-center gap-1.5 text-[0.85rem] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                                  <item.icon className="size-3.5" />
+                                  {item.label}
+                                </label>
+                                <input
+                                  type="time"
+                                  value={timeFields[item.field]}
+                                  onChange={(e) => updateTimeField(item.field, e.target.value)}
+                                  className="w-full rounded-[0.75rem] border border-slate-200 bg-white px-3 py-2.5 text-center text-[1rem] text-slate-950 shadow-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        {/* Submit bar for retroactive */}
+                        <div className="flex items-center justify-between gap-4 rounded-[1rem] bg-slate-50 px-5 py-4">
+                          <div>
+                            <p className="text-[1.05rem] font-semibold text-slate-950">{selectedMember.name}</p>
+                            <p className="text-[0.9rem] uppercase tracking-[0.08em] text-slate-400">
+                              {selectedMember.department} · {formatInputDate(selectedDate)}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleSingleSubmit}
+                            disabled={isSubmitting || !timeFields.checkIn || memberHasRecordOnDate(selectedMember.id)}
+                            className="inline-flex items-center gap-2 rounded-[0.95rem] bg-black px-6 py-3 text-[1.05rem] font-medium text-white transition disabled:opacity-60"
+                          >
+                            <Save className="size-5" />
+                            {submitSuccess ? "Saved!" : isSubmitting ? "Saving..." : "Submit Entry"}
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
-                </div>
+                ) : (
+                  <div className="grid min-h-[30rem] place-items-center">
+                    <div className="text-center">
+                      <Search className="mx-auto size-10 text-slate-400" />
+                      <p className="mt-6 text-[1.2rem] text-slate-500">
+                        Select a member from the list to start recording attendance
+                      </p>
+                    </div>
+                  </div>
+                )
+
+              /* ════ BATCH ENTRY ════ */
               ) : addedBatchMembers.length ? (
-                /* Batch entry panel */
                 <div className="space-y-4">
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {members
                       .filter((m) => addedBatchMembers.includes(m.id))
                       .map((member) => {
                         const times = getBatchMemberTime(member.id)
-                        const isDuplicate = hasRecord(member.id)
                         return (
-                          <div key={member.id} className={`relative rounded-[1.1rem] border border-slate-200 bg-white p-4 ${isDuplicate ? 'opacity-50' : ''}`}>
+                          <div key={member.id} className="relative rounded-[1.1rem] border border-slate-200 bg-white p-4">
                             <button
                               type="button"
                               onClick={() => toggleBatchMember(member.id)}
@@ -658,11 +836,9 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
                             <p className="text-[0.85rem] uppercase tracking-[0.08em] text-slate-400">
                               {member.department}
                             </p>
-                            {isDuplicate && (
-                              <p className="text-xs text-red-500 mt-1">Duplicate</p>
-                            )}
 
                             {timingMode === "realtime" ? (
+                              /* Auto-fill preview */
                               <div className="mt-3 rounded-[0.8rem] bg-blue-50 px-3 py-2.5">
                                 <div className="flex items-center gap-1.5 text-blue-500">
                                   <Clock className="size-3.5" />
@@ -678,6 +854,7 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
                                 </p>
                               </div>
                             ) : (
+                              /* Manual inputs per member */
                               <div className="mt-3 grid grid-cols-2 gap-2">
                                 {timeInputConfigs.map((item) => (
                                   <RetroTimeCard
@@ -695,6 +872,7 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
                       })}
                   </div>
 
+                  {/* Submit bar */}
                   <div className="flex items-center justify-between gap-4 rounded-[1rem] bg-slate-50 px-5 py-4">
                     <p className="text-[1.05rem] text-slate-600">
                       {addedBatchMembers.length} member{addedBatchMembers.length !== 1 ? "s" : ""} ready ·{" "}
