@@ -215,10 +215,6 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
   })
 
   const selectedMember = members.find((m) => m.id === selectedMemberId) ?? null
-  const currentTimeLabel = new Intl.DateTimeFormat("en-GB", {
-    hour: "2-digit", minute: "2-digit", second: "2-digit",
-    hour12: false, timeZone: "Asia/Jakarta",
-  }).format(new Date())
 
   const calendarDate  = React.useMemo(() => new Date(`${selectedDate}T09:00:00+07:00`), [selectedDate])
   const calendarCells = React.useMemo(() => getCalendarCells(calendarDate), [calendarDate])
@@ -567,45 +563,69 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
               {entryMode === "single" ? (
                 selectedMember ? (
                   <div className="space-y-5">
-                    {/* Alert bar */}
-                    <div className="flex items-center justify-between gap-4 rounded-[1rem] border border-amber-300 bg-amber-50 px-5 py-4">
-                      <div className="flex items-center gap-3 text-[1.05rem] text-amber-700">
-                        <TriangleAlert className="size-5" />
-                        <span>No schedule assigned for this member on this date.</span>
+                    {/* Schedule Bar + Realtime Clock */}
+                    <div className="flex items-center justify-between rounded-[1rem] border border-slate-200 bg-white p-4">
+                      <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-2">
+                          <Clock className="size-4 text-slate-400" />
+                          <span className="text-sm font-medium text-slate-700">07:30 - 19:00</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Coffee className="size-4 text-slate-400" />
+                          <span className="text-sm font-medium text-slate-700">BREAK 07:35 - 13:00</span>
+                        </div>
                       </div>
-                      <span className="text-[1.5rem] font-semibold tracking-tight text-slate-950">
-                        {currentTimeLabel}
-                      </span>
+                      <div className="text-2xl font-semibold tracking-tight text-slate-900">
+                        {liveClock}
+                      </div>
                     </div>
 
-                    {/* Timing mode */}
-                    <div className="flex items-center justify-between">
-                      <p className="text-[1.05rem] font-medium text-slate-900">Input Mode</p>
-                      <TimingModeToggle />
+                    {/* Progress Bar with break indicator */}
+                    <div className="space-y-1">
+                      <div className="h-2 w-full rounded-full bg-slate-100">
+                        {(() => {
+                          const now = new Date()
+                          const currentMins = now.getHours() * 60 + now.getMinutes()
+                          const startMins = 7 * 60 + 30  // 07:30
+                          const endMins = 19 * 60         // 19:00
+                          let progress = 0
+                          if (currentMins >= startMins && currentMins <= endMins) {
+                            progress = ((currentMins - startMins) / (endMins - startMins)) * 100
+                          } else if (currentMins > endMins) {
+                            progress = 100
+                          }
+                          return (
+                            <div
+                              className="h-full rounded-full bg-blue-500 transition-all duration-1000"
+                              style={{ width: `${progress}%` }}
+                            />
+                          )
+                        })()}
+                      </div>
+                      {/* Break segment */}
+                      <div className="relative h-1 w-full">
+                        <div
+                          className="absolute top-0 h-full w-1 bg-amber-400"
+                          style={{
+                            left: `${((7 * 60 + 35 - (7 * 60 + 30)) / (19 * 60 - (7 * 60 + 30))) * 100}%`,
+                            width: `${((13 * 60 - (7 * 60 + 35)) / (19 * 60 - (7 * 60 + 30))) * 100}%`,
+                          }}
+                        />
+                      </div>
                     </div>
 
-                    {timingMode === "realtime" ? (
-                      /* ── Click-to-stamp cards with 3s delay & business rules ── */
-                      <>
-                        {/* Status info card */}
-                        <div className="space-y-2 rounded-[1rem] border border-blue-200 bg-blue-50/50 p-4">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="font-medium text-slate-700">Current time (WIB)</span>
-                            <span className="text-xl font-semibold tracking-tight text-slate-900">
-                              {liveClock}
-                            </span>
-                          </div>
-                          <div className="text-sm text-slate-600">
+                    {/* Status Info Card */}
+                    <div className="rounded-[1rem] border border-blue-200 bg-blue-50/50 p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-slate-700">
                             {timeFields.checkIn ? (
-                              <>
-                                Check‑in recorded at{" "}
-                                <span className="font-mono font-medium">{timeFields.checkIn}</span>
-                              </>
+                              <>Check‑in recorded at <span className="font-mono">{timeFields.checkIn}</span></>
                             ) : (
                               "No check‑in yet"
                             )}
-                          </div>
-                          <div className="text-sm text-slate-500">
+                          </p>
+                          <p className="text-sm text-slate-500">
                             {!timeFields.checkIn
                               ? "⌛ Check in to enable other actions"
                               : !canPerform("breakIn") && !timeFields.breakIn
@@ -613,11 +633,27 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
                                 : timeFields.breakIn
                                   ? `✅ Break in at ${timeFields.breakIn}`
                                   : "✅ Break‑in available now"}
-                          </div>
+                          </p>
                         </div>
+                        {timeFields.checkIn && (
+                          <div className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+                            Checked In
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
+                    {/* Timing mode toggle */}
+                    <div className="flex items-center justify-between">
+                      <p className="text-[1.05rem] font-medium text-slate-900">Input Mode</p>
+                      <TimingModeToggle />
+                    </div>
+
+                    {timingMode === "realtime" ? (
+                      /* ── Click-to-stamp cards with 3s delay & overlay ── */
+                      <>
                         <p className="text-[0.95rem] text-slate-500">
-                          Click each card to stamp the current time (3‑second loading per action).
+                          Click each card to stamp the current time (3‑second loading).
                         </p>
                         <div className="grid gap-4 xl:grid-cols-4">
                           {timeInputConfigs.map((item) => {
@@ -626,49 +662,56 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
                             const filled = !!timeFields[item.field]
 
                             return (
-                              <button
-                                key={item.label}
-                                type="button"
-                                onClick={() => handleStamp(item.field)}
-                                disabled={isDisabled}
-                                className={`group relative flex flex-col items-center gap-3 rounded-[1.5rem] border px-4 py-6 text-center transition ${
-                                  filled
-                                    ? "border-blue-300 bg-blue-50"
-                                    : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
-                                } ${isDisabled && !isLoading ? "cursor-not-allowed opacity-60" : ""}`}
-                              >
-                                {isLoading ? (
-                                  <Loader2 className="size-7 animate-spin text-blue-600" />
-                                ) : (
-                                  <item.icon
-                                    className={`size-7 transition ${
-                                      filled ? "text-blue-500" : "text-slate-400 group-hover:text-slate-600"
-                                    }`}
-                                  />
-                                )}
-                                <p className="text-[0.85rem] font-semibold uppercase tracking-[0.08em] text-slate-500">
-                                  {item.label}
-                                </p>
-                                <div
-                                  className={`flex items-center gap-1.5 rounded-[0.6rem] px-3 py-1.5 text-[1.05rem] font-semibold transition ${
-                                    filled ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-400"
-                                  }`}
+                              <div key={item.label} className="relative">
+                                <button
+                                  type="button"
+                                  onClick={() => handleStamp(item.field)}
+                                  disabled={isDisabled}
+                                  className={`group relative flex w-full flex-col items-center gap-3 rounded-[1.5rem] border px-4 py-6 text-center transition ${
+                                    filled
+                                      ? "border-blue-300 bg-blue-50"
+                                      : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                                  } ${isDisabled && !isLoading ? "cursor-not-allowed opacity-60" : ""}`}
                                 >
-                                  <Clock className="size-3.5" />
                                   {isLoading ? (
-                                    <span className="inline-block h-4 w-10 animate-pulse rounded bg-slate-300" />
+                                    <Loader2 className="size-7 animate-spin text-blue-600" />
                                   ) : (
-                                    timeFields[item.field] || "--:--"
+                                    <item.icon
+                                      className={`size-7 transition ${
+                                        filled ? "text-blue-500" : "text-slate-400 group-hover:text-slate-600"
+                                      }`}
+                                    />
                                   )}
-                                </div>
-                                {/* Tooltip when disabled */}
-                                {!canPerform(item.field) && !filled && !isLoading && (
-                                  <div className="absolute -bottom-7 left-1/2 w-max -translate-x-1/2 rounded-full bg-slate-800 px-3 py-1 text-[0.7rem] text-white opacity-0 transition group-hover:opacity-100">
-                                    {item.field === "breakIn" && "Break‑in only 07:35–13:00"}
-                                    {item.field === "breakOut" && "Need break‑in first"}
+                                  <p className="text-[0.85rem] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                                    {item.label}
+                                  </p>
+                                  <div
+                                    className={`flex items-center gap-1.5 rounded-[0.6rem] px-3 py-1.5 text-[1.05rem] font-semibold transition ${
+                                      filled ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-400"
+                                    }`}
+                                  >
+                                    <Clock className="size-3.5" />
+                                    {isLoading ? (
+                                      <span className="inline-block h-4 w-10 animate-pulse rounded bg-slate-300" />
+                                    ) : (
+                                      timeFields[item.field] || "--:--"
+                                    )}
+                                  </div>
+                                  {/* Tooltip when disabled */}
+                                  {!canPerform(item.field) && !filled && !isLoading && (
+                                    <div className="absolute -bottom-7 left-1/2 w-max -translate-x-1/2 rounded-full bg-slate-800 px-3 py-1 text-[0.7rem] text-white opacity-0 transition group-hover:opacity-100">
+                                      {item.field === "breakIn" && "Break‑in only 07:35–13:00"}
+                                      {item.field === "breakOut" && "Need break‑in first"}
+                                    </div>
+                                  )}
+                                </button>
+                                {/* Loading overlay abu-abu transparan */}
+                                {isLoading && (
+                                  <div className="absolute inset-0 flex items-center justify-center rounded-[1.5rem] bg-gray-500/20 backdrop-blur-[1px]">
+                                    <Loader2 className="size-8 animate-spin text-white drop-shadow" />
                                   </div>
                                 )}
-                              </button>
+                              </div>
                             )
                           })}
                         </div>
