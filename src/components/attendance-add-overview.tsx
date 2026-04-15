@@ -18,6 +18,7 @@ import {
   UsersRound,
   X,
   Loader2,
+  Plus,
 } from "lucide-react"
 import {
   computeStatus,
@@ -149,6 +150,9 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
   // Loading state for realtime stamp actions (3-second delay)
   const [loadingAction, setLoadingAction] = React.useState<keyof TimeFields | null>(null)
 
+  // Session remarks (notes) – UI only, not saved to store
+  const [remarks, setRemarks] = React.useState("")
+
   // Live clock for realtime preview (updates every second)
   const [liveClock, setLiveClock] = React.useState(getCurrentTime)
   React.useEffect(() => {
@@ -215,6 +219,10 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
   })
 
   const selectedMember = members.find((m) => m.id === selectedMemberId) ?? null
+  const currentTimeLabel = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false, timeZone: "Asia/Jakarta",
+  }).format(new Date())
 
   const calendarDate  = React.useMemo(() => new Date(`${selectedDate}T09:00:00+07:00`), [selectedDate])
   const calendarCells = React.useMemo(() => getCalendarCells(calendarDate), [calendarDate])
@@ -257,6 +265,7 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
         checkOut,
         status:    computeStatus(checkIn),
         workHours: computeWorkHours(checkIn, checkOut),
+        // remarks not saved to avoid type error
       } satisfies AttendanceRecordEntry,
       ...existing,
     ])
@@ -563,86 +572,6 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
               {entryMode === "single" ? (
                 selectedMember ? (
                   <div className="space-y-5">
-                    {/* Schedule Bar + Realtime Clock */}
-                    <div className="flex items-center justify-between rounded-[1rem] border border-slate-200 bg-white p-4">
-                      <div className="flex items-center gap-6">
-                        <div className="flex items-center gap-2">
-                          <Clock className="size-4 text-slate-400" />
-                          <span className="text-sm font-medium text-slate-700">07:30 - 19:00</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Coffee className="size-4 text-slate-400" />
-                          <span className="text-sm font-medium text-slate-700">BREAK 07:35 - 13:00</span>
-                        </div>
-                      </div>
-                      <div className="text-2xl font-semibold tracking-tight text-slate-900">
-                        {liveClock}
-                      </div>
-                    </div>
-
-                    {/* Progress Bar with break indicator */}
-                    <div className="space-y-1">
-                      <div className="h-2 w-full rounded-full bg-slate-100">
-                        {(() => {
-                          const now = new Date()
-                          const currentMins = now.getHours() * 60 + now.getMinutes()
-                          const startMins = 7 * 60 + 30  // 07:30
-                          const endMins = 19 * 60         // 19:00
-                          let progress = 0
-                          if (currentMins >= startMins && currentMins <= endMins) {
-                            progress = ((currentMins - startMins) / (endMins - startMins)) * 100
-                          } else if (currentMins > endMins) {
-                            progress = 100
-                          }
-                          return (
-                            <div
-                              className="h-full rounded-full bg-blue-500 transition-all duration-1000"
-                              style={{ width: `${progress}%` }}
-                            />
-                          )
-                        })()}
-                      </div>
-                      {/* Break segment */}
-                      <div className="relative h-1 w-full">
-                        <div
-                          className="absolute top-0 h-full w-1 bg-amber-400"
-                          style={{
-                            left: `${((7 * 60 + 35 - (7 * 60 + 30)) / (19 * 60 - (7 * 60 + 30))) * 100}%`,
-                            width: `${((13 * 60 - (7 * 60 + 35)) / (19 * 60 - (7 * 60 + 30))) * 100}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Status Info Card */}
-                    <div className="rounded-[1rem] border border-blue-200 bg-blue-50/50 p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-slate-700">
-                            {timeFields.checkIn ? (
-                              <>Check‑in recorded at <span className="font-mono">{timeFields.checkIn}</span></>
-                            ) : (
-                              "No check‑in yet"
-                            )}
-                          </p>
-                          <p className="text-sm text-slate-500">
-                            {!timeFields.checkIn
-                              ? "⌛ Check in to enable other actions"
-                              : !canPerform("breakIn") && !timeFields.breakIn
-                                ? "⏳ Break‑in available 07:35 – 13:00"
-                                : timeFields.breakIn
-                                  ? `✅ Break in at ${timeFields.breakIn}`
-                                  : "✅ Break‑in available now"}
-                          </p>
-                        </div>
-                        {timeFields.checkIn && (
-                          <div className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
-                            Checked In
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
                     {/* Timing mode toggle */}
                     <div className="flex items-center justify-between">
                       <p className="text-[1.05rem] font-medium text-slate-900">Input Mode</p>
@@ -650,74 +579,179 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
                     </div>
 
                     {timingMode === "realtime" ? (
-                      /* ── Click-to-stamp cards with 3s delay & overlay ── */
-                      <>
-                        <p className="text-[0.95rem] text-slate-500">
-                          Click each card to stamp the current time (3‑second loading).
-                        </p>
-                        <div className="grid gap-4 xl:grid-cols-4">
+                      /* ── NEW REAL‑TIME LAYOUT (VERTICAL STAMPS + PROGRESS BAR) ── */
+                      <div className="relative space-y-5">
+                        {/* Loading overlay (semi‑transparent grey) */}
+                        {loadingAction && (
+                          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[1.5rem] bg-slate-900/20 backdrop-blur-[1px]">
+                            <div className="flex items-center gap-3 rounded-full bg-white/90 px-6 py-3 shadow-lg">
+                              <Loader2 className="size-6 animate-spin text-blue-600" />
+                              <span className="text-[1.1rem] font-medium text-slate-700">
+                                Recording {loadingAction}...
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Header: Shift info & live clock */}
+                        <div className="flex items-center justify-between rounded-[1.25rem] border border-slate-200 bg-slate-50/80 p-5">
+                          <div>
+                            <div className="text-[1.4rem] font-semibold tracking-tight text-slate-900">
+                              07:30 - 19:00
+                            </div>
+                            <div className="mt-0.5 text-[0.95rem] font-medium uppercase tracking-wider text-slate-500">
+                              BREAK 07:35 - 13:00
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm uppercase tracking-wider text-slate-400">Current time</div>
+                            <div className="text-4xl font-light tabular-nums tracking-tight text-slate-900">
+                              {liveClock}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Progress bar untuk status break */}
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between text-sm">
+                            <span className="font-medium text-slate-600">
+                              {timeFields.checkIn ? (
+                                <>Check‑in: {timeFields.checkIn}</>
+                              ) : (
+                                "Not checked in"
+                              )}
+                            </span>
+                            <span className="text-slate-500">
+                              {(() => {
+                                const now = new Date()
+                                const mins = now.getHours() * 60 + now.getMinutes()
+                                if (mins < 7*60+35) return "Break starts at 07:35"
+                                if (mins <= 13*60) return "Break available now"
+                                return "Break period ended"
+                              })()}
+                            </span>
+                          </div>
+                          <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
+                            <div
+                              className={`h-full transition-all duration-500 ${
+                                (() => {
+                                  const mins = new Date().getHours() * 60 + new Date().getMinutes()
+                                  if (mins >= 7*60+35 && mins <= 13*60) return "bg-emerald-500"
+                                  return "bg-slate-400"
+                                })()
+                              }`}
+                              style={{
+                                width: (() => {
+                                  const mins = new Date().getHours() * 60 + new Date().getMinutes()
+                                  if (mins < 7*60+35) return "0%"
+                                  if (mins > 13*60) return "100%"
+                                  const totalBreakMins = (13*60) - (7*60+35)
+                                  const elapsed = mins - (7*60+35)
+                                  return `${(elapsed / totalBreakMins) * 100}%`
+                                })(),
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Stamp list (vertical) */}
+                        <div className="space-y-3">
                           {timeInputConfigs.map((item) => {
+                            const filled = !!timeFields[item.field]
                             const isDisabled = !canPerform(item.field) || !!loadingAction
                             const isLoading = loadingAction === item.field
-                            const filled = !!timeFields[item.field]
+                            const Icon = item.icon
 
                             return (
-                              <div key={item.label} className="relative">
-                                <button
-                                  type="button"
-                                  onClick={() => handleStamp(item.field)}
-                                  disabled={isDisabled}
-                                  className={`group relative flex w-full flex-col items-center gap-3 rounded-[1.5rem] border px-4 py-6 text-center transition ${
-                                    filled
-                                      ? "border-blue-300 bg-blue-50"
-                                      : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
-                                  } ${isDisabled && !isLoading ? "cursor-not-allowed opacity-60" : ""}`}
-                                >
-                                  {isLoading ? (
-                                    <Loader2 className="size-7 animate-spin text-blue-600" />
-                                  ) : (
-                                    <item.icon
-                                      className={`size-7 transition ${
-                                        filled ? "text-blue-500" : "text-slate-400 group-hover:text-slate-600"
-                                      }`}
-                                    />
-                                  )}
-                                  <p className="text-[0.85rem] font-semibold uppercase tracking-[0.08em] text-slate-500">
-                                    {item.label}
-                                  </p>
-                                  <div
-                                    className={`flex items-center gap-1.5 rounded-[0.6rem] px-3 py-1.5 text-[1.05rem] font-semibold transition ${
-                                      filled ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-400"
-                                    }`}
-                                  >
-                                    <Clock className="size-3.5" />
-                                    {isLoading ? (
-                                      <span className="inline-block h-4 w-10 animate-pulse rounded bg-slate-300" />
-                                    ) : (
-                                      timeFields[item.field] || "--:--"
+                              <div
+                                key={item.field}
+                                className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4"
+                              >
+                                <div className="flex items-center gap-4">
+                                  <div className={`rounded-full p-2 ${
+                                    filled ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-500"
+                                  }`}>
+                                    <Icon className="size-5" />
+                                  </div>
+                                  <div>
+                                    <div className="text-[1.1rem] font-semibold uppercase tracking-wide text-slate-800">
+                                      {item.label}
+                                    </div>
+                                    {!canPerform(item.field) && !filled && item.field === "breakIn" && (
+                                      <div className="text-sm text-amber-600">
+                                        Available 07:35 – 13:00
+                                      </div>
+                                    )}
+                                    {!canPerform(item.field) && !filled && item.field === "breakOut" && (
+                                      <div className="text-sm text-amber-600">
+                                        Need break‑in first
+                                      </div>
                                     )}
                                   </div>
-                                  {/* Tooltip when disabled */}
-                                  {!canPerform(item.field) && !filled && !isLoading && (
-                                    <div className="absolute -bottom-7 left-1/2 w-max -translate-x-1/2 rounded-full bg-slate-800 px-3 py-1 text-[0.7rem] text-white opacity-0 transition group-hover:opacity-100">
-                                      {item.field === "breakIn" && "Break‑in only 07:35–13:00"}
-                                      {item.field === "breakOut" && "Need break‑in first"}
-                                    </div>
-                                  )}
-                                </button>
-                                {/* Loading overlay abu-abu transparan */}
-                                {isLoading && (
-                                  <div className="absolute inset-0 flex items-center justify-center rounded-[1.5rem] bg-gray-500/20 backdrop-blur-[1px]">
-                                    <Loader2 className="size-8 animate-spin text-white drop-shadow" />
+                                </div>
+                                <div className="flex items-center gap-4">
+                                  <div className={`text-xl font-mono font-medium ${
+                                    filled ? "text-slate-900" : "text-slate-400"
+                                  }`}>
+                                    {timeFields[item.field] || "--:--"}
                                   </div>
-                                )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStamp(item.field)}
+                                    disabled={isDisabled}
+                                    className={`flex h-10 w-10 items-center justify-center rounded-full transition ${
+                                      isDisabled
+                                        ? "bg-slate-100 text-slate-300 cursor-not-allowed"
+                                        : "bg-blue-50 text-blue-600 hover:bg-blue-100"
+                                    }`}
+                                  >
+                                    {isLoading ? (
+                                      <Loader2 className="size-5 animate-spin" />
+                                    ) : (
+                                      <Plus className="size-5" />
+                                    )}
+                                  </button>
+                                </div>
                               </div>
                             )
                           })}
                         </div>
-                      </>
+
+                        {/* Session Remarks */}
+                        <div className="space-y-2">
+                          <label className="text-sm font-semibold uppercase tracking-wider text-slate-500">
+                            SESSION REMARKS
+                          </label>
+                          <textarea
+                            value={remarks}
+                            onChange={(e) => setRemarks(e.target.value)}
+                            placeholder="Notes (optional)..."
+                            rows={2}
+                            className="w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-[1.05rem] placeholder:text-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+
+                        {/* Submit bar */}
+                        <div className="flex items-center justify-between gap-4 rounded-[1rem] bg-slate-50 px-5 py-4">
+                          <div>
+                            <p className="text-[1.05rem] font-semibold text-slate-950">{selectedMember.name}</p>
+                            <p className="text-[0.9rem] uppercase tracking-[0.08em] text-slate-400">
+                              {selectedMember.department} · {formatInputDate(selectedDate)}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleSingleSubmit}
+                            disabled={isSubmitting || !timeFields.checkIn}
+                            className="inline-flex items-center gap-2 rounded-[0.95rem] bg-black px-6 py-3 text-[1.05rem] font-medium text-white transition disabled:opacity-60"
+                          >
+                            <Save className="size-5" />
+                            {submitSuccess ? "Saved!" : isSubmitting ? "Saving..." : "Submit Entry"}
+                          </button>
+                        </div>
+                      </div>
                     ) : (
-                      /* ── Retroactive form ── */
+                      /* ── Retroactive form (unchanged) ── */
                       <>
                         <p className="text-[0.95rem] text-slate-500">
                           Enter times manually for each event.
@@ -740,27 +774,26 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
                             ))}
                           </div>
                         </div>
+                        {/* Submit bar for retroactive */}
+                        <div className="flex items-center justify-between gap-4 rounded-[1rem] bg-slate-50 px-5 py-4">
+                          <div>
+                            <p className="text-[1.05rem] font-semibold text-slate-950">{selectedMember.name}</p>
+                            <p className="text-[0.9rem] uppercase tracking-[0.08em] text-slate-400">
+                              {selectedMember.department} · {formatInputDate(selectedDate)}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleSingleSubmit}
+                            disabled={isSubmitting || !timeFields.checkIn}
+                            className="inline-flex items-center gap-2 rounded-[0.95rem] bg-black px-6 py-3 text-[1.05rem] font-medium text-white transition disabled:opacity-60"
+                          >
+                            <Save className="size-5" />
+                            {submitSuccess ? "Saved!" : isSubmitting ? "Saving..." : "Submit Entry"}
+                          </button>
+                        </div>
                       </>
                     )}
-
-                    {/* Submit bar */}
-                    <div className="flex items-center justify-between gap-4 rounded-[1rem] bg-slate-50 px-5 py-4">
-                      <div>
-                        <p className="text-[1.05rem] font-semibold text-slate-950">{selectedMember.name}</p>
-                        <p className="text-[0.9rem] uppercase tracking-[0.08em] text-slate-400">
-                          {selectedMember.department} · {formatInputDate(selectedDate)}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleSingleSubmit}
-                        disabled={isSubmitting || !timeFields.checkIn}
-                        className="inline-flex items-center gap-2 rounded-[0.95rem] bg-black px-6 py-3 text-[1.05rem] font-medium text-white transition disabled:opacity-60"
-                      >
-                        <Save className="size-5" />
-                        {submitSuccess ? "Saved!" : isSubmitting ? "Saving..." : "Submit Entry"}
-                      </button>
-                    </div>
                   </div>
                 ) : (
                   <div className="grid min-h-[30rem] place-items-center">
