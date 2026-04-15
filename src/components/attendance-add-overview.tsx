@@ -17,6 +17,7 @@ import {
   UserPlus,
   UsersRound,
   X,
+  Loader2,
 } from "lucide-react"
 import {
   computeStatus,
@@ -145,10 +146,13 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
   // Single-entry time fields
   const [timeFields, setTimeFields] = React.useState<TimeFields>(emptyTimeFields)
 
-  // Live clock for realtime preview (updates every minute)
+  // Loading state for realtime stamp actions (3-second delay)
+  const [loadingAction, setLoadingAction] = React.useState<keyof TimeFields | null>(null)
+
+  // Live clock for realtime preview (updates every second)
   const [liveClock, setLiveClock] = React.useState(getCurrentTime)
   React.useEffect(() => {
-    const id = window.setInterval(() => setLiveClock(getCurrentTime()), 10_000)
+    const id = window.setInterval(() => setLiveClock(getCurrentTime()), 1000)
     return () => clearInterval(id)
   }, [])
 
@@ -167,6 +171,39 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
 
   // Reset time fields when member changes (single mode)
   React.useEffect(() => { setTimeFields(emptyTimeFields) }, [selectedMemberId])
+
+  // ── Business rules for realtime stamp availability ──────────────────────────
+  const canPerform = React.useCallback(
+    (field: keyof TimeFields): boolean => {
+      const { checkIn, breakIn } = timeFields
+      const now = new Date()
+      const currentMinutes = now.getHours() * 60 + now.getMinutes()
+      const isBreakTime = currentMinutes >= 7 * 60 + 35 && currentMinutes <= 13 * 60
+
+      switch (field) {
+        case "checkIn":
+          return true
+        case "breakIn":
+          return !!checkIn && isBreakTime
+        case "breakOut":
+          return !!breakIn
+        case "checkOut":
+          return !!checkIn
+        default:
+          return false
+      }
+    },
+    [timeFields]
+  )
+
+  const handleStamp = (field: keyof TimeFields) => {
+    if (loadingAction || !canPerform(field)) return
+    setLoadingAction(field)
+    setTimeout(() => {
+      setTimeFields((prev) => ({ ...prev, [field]: getCurrentTime() }))
+      setLoadingAction(null)
+    }, 3000)
+  }
 
   const filteredMembers = members.filter((m) => {
     const matchesSearch = m.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
@@ -548,35 +585,89 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
                     </div>
 
                     {timingMode === "realtime" ? (
-                      /* ── Click-to-stamp cards ── */
+                      /* ── Click-to-stamp cards with 3s delay & business rules ── */
                       <>
+                        {/* Status info card */}
+                        <div className="space-y-2 rounded-[1rem] border border-blue-200 bg-blue-50/50 p-4">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="font-medium text-slate-700">Current time (WIB)</span>
+                            <span className="text-xl font-semibold tracking-tight text-slate-900">
+                              {liveClock}
+                            </span>
+                          </div>
+                          <div className="text-sm text-slate-600">
+                            {timeFields.checkIn ? (
+                              <>
+                                Check‑in recorded at{" "}
+                                <span className="font-mono font-medium">{timeFields.checkIn}</span>
+                              </>
+                            ) : (
+                              "No check‑in yet"
+                            )}
+                          </div>
+                          <div className="text-sm text-slate-500">
+                            {!timeFields.checkIn
+                              ? "⌛ Check in to enable other actions"
+                              : !canPerform("breakIn") && !timeFields.breakIn
+                                ? "⏳ Break‑in available 07:35 – 13:00"
+                                : timeFields.breakIn
+                                  ? `✅ Break in at ${timeFields.breakIn}`
+                                  : "✅ Break‑in available now"}
+                          </div>
+                        </div>
+
                         <p className="text-[0.95rem] text-slate-500">
-                          Click each card to stamp the current time.
+                          Click each card to stamp the current time (3‑second loading per action).
                         </p>
                         <div className="grid gap-4 xl:grid-cols-4">
                           {timeInputConfigs.map((item) => {
+                            const isDisabled = !canPerform(item.field) || !!loadingAction
+                            const isLoading = loadingAction === item.field
                             const filled = !!timeFields[item.field]
+
                             return (
                               <button
                                 key={item.label}
                                 type="button"
-                                onClick={() => updateTimeField(item.field, getCurrentTime())}
-                                className={`group flex flex-col items-center gap-3 rounded-[1.5rem] border px-4 py-6 text-center transition active:scale-95 ${
+                                onClick={() => handleStamp(item.field)}
+                                disabled={isDisabled}
+                                className={`group relative flex flex-col items-center gap-3 rounded-[1.5rem] border px-4 py-6 text-center transition ${
                                   filled
                                     ? "border-blue-300 bg-blue-50"
                                     : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
-                                }`}
+                                } ${isDisabled && !isLoading ? "cursor-not-allowed opacity-60" : ""}`}
                               >
-                                <item.icon className={`size-7 transition ${filled ? "text-blue-500" : "text-slate-400 group-hover:text-slate-600"}`} />
+                                {isLoading ? (
+                                  <Loader2 className="size-7 animate-spin text-blue-600" />
+                                ) : (
+                                  <item.icon
+                                    className={`size-7 transition ${
+                                      filled ? "text-blue-500" : "text-slate-400 group-hover:text-slate-600"
+                                    }`}
+                                  />
+                                )}
                                 <p className="text-[0.85rem] font-semibold uppercase tracking-[0.08em] text-slate-500">
                                   {item.label}
                                 </p>
-                                <div className={`flex items-center gap-1.5 rounded-[0.6rem] px-3 py-1.5 text-[1.05rem] font-semibold transition ${
-                                  filled ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-400"
-                                }`}>
+                                <div
+                                  className={`flex items-center gap-1.5 rounded-[0.6rem] px-3 py-1.5 text-[1.05rem] font-semibold transition ${
+                                    filled ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-400"
+                                  }`}
+                                >
                                   <Clock className="size-3.5" />
-                                  {timeFields[item.field] || "--:--"}
+                                  {isLoading ? (
+                                    <span className="inline-block h-4 w-10 animate-pulse rounded bg-slate-300" />
+                                  ) : (
+                                    timeFields[item.field] || "--:--"
+                                  )}
                                 </div>
+                                {/* Tooltip when disabled */}
+                                {!canPerform(item.field) && !filled && !isLoading && (
+                                  <div className="absolute -bottom-7 left-1/2 w-max -translate-x-1/2 rounded-full bg-slate-800 px-3 py-1 text-[0.7rem] text-white opacity-0 transition group-hover:opacity-100">
+                                    {item.field === "breakIn" && "Break‑in only 07:35–13:00"}
+                                    {item.field === "breakOut" && "Need break‑in first"}
+                                  </div>
+                                )}
                               </button>
                             )
                           })}
