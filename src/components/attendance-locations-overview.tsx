@@ -178,120 +178,73 @@ export function AttendanceLocationsOverview() {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-[1rem] border border-slate-200 bg-white">
-            <div className="overflow-x-auto">
-              <table className="min-w-[78rem] border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200 text-left text-[0.95rem] font-semibold text-slate-600">
-                    <th className="px-4 py-4">Device Name</th>
-                    <th className="px-4 py-4">Code</th>
-                    <th className="px-4 py-4">Location</th>
-                    <th className="px-4 py-4">Coordinates</th>
-                    <th className="px-4 py-4">Radius</th>
-                    <th className="px-4 py-4">Type</th>
-                    <th className="px-4 py-4">Status</th>
-                    <th className="px-4 py-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredLocations.map((item) => (
-                    <tr
-                      key={item.id}
-                      className="border-b border-slate-200 transition hover:bg-slate-50 last:border-b-0"
-                    >
-                      <td className="px-4 py-5 text-[1.1rem] font-medium text-slate-950">{item.name}</td>
-                      <td className="px-4 py-5">
-                        <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-600">
-                          {item.code}
+        <div className="overflow-x-auto">
+          <table className="w-full table-fixed border-collapse">
+            <thead>
+              <tr className="border-b border-slate-200 text-left text-[0.95rem] font-semibold text-slate-600">
+                <th className="w-[18%] px-4 py-3">Device Name</th>
+                <th className="w-[10%] px-4 py-3">Code</th>
+                <th className="w-[20%] px-4 py-3">Location</th>
+                <th className="w-[15%] px-4 py-3">Coordinates</th>
+                <th className="w-[8%] px-4 py-3">Radius</th>
+                <th className="w-[8%] px-4 py-3">Type</th>
+                <th className="w-[13%] px-4 py-3">Status</th>
+                <th className="w-[8%] px-4 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredLocations.map((item) => (
+                <tr key={item.id} className="border-b border-slate-200 hover:bg-slate-50">
+                  <td className="truncate px-4 py-4 text-[1.05rem] font-medium text-slate-950">{item.name}</td>
+                  <td className="px-4 py-4"><span className="inline-block rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-sm text-slate-600">{item.code}</span></td>
+                  <td className="truncate px-4 py-4 text-[1rem] text-slate-500">{item.description}</td>
+                  <td className="px-4 py-4 text-[1rem] text-slate-500">{item.latitude.toFixed(6)}, {item.longitude.toFixed(6)}</td>
+                  <td className="px-4 py-4 text-[1rem] text-slate-500">{item.radius}m</td>
+                  <td className="px-4 py-4"><span className="rounded-full border border-slate-300 px-2 py-1 text-xs font-medium">{item.type}</span></td>
+                  <td className="px-4 py-4">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => handleToggleStatus(item.id)} className={`relative h-6 w-10 rounded-full ${item.active ? "bg-slate-400" : "bg-slate-200"}`}>
+                        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${item.active ? "left-5" : "left-0.5"}`}>
+                          <CheckCircle2 className="size-3 m-auto mt-1" />
                         </span>
-                      </td>
-                      <td className="px-4 py-5 text-[1.05rem] text-slate-500">{item.description}</td>
-                      <td className="px-4 py-5 text-[1.05rem] text-slate-500">
-                        {item.latitude.toFixed(6)}, {item.longitude.toFixed(6)}
-                      </td>
-                      <td className="px-4 py-5 text-[1.05rem] text-slate-500">{item.radius}m</td>
-                      <td className="px-4 py-5">
-                        <span className="rounded-full border border-slate-300 px-3 py-1 text-sm font-medium text-slate-600">
-                          {item.type}
-                        </span>
-                      </td>
-                      <td className="px-4 py-5">
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleStatus(item.id)}
-                            className={`relative inline-flex h-7 w-11 items-center rounded-full ${
-                              item.active ? "bg-slate-400" : "bg-slate-200"
-                            } transition`}
-                            aria-pressed={item.active}
-                            aria-label={`Set ${item.name} as ${item.active ? "inactive" : "active"}`}
-                          >
-                            <span
-                              className={`absolute inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-slate-500 shadow-sm transition ${
-                                item.active ? "left-5" : "left-1"
-                              }`}
-                            >
-                              <CheckCircle2 className="size-3.5" />
-                            </span>
-                          </button>
-                          <span
-                            className={`rounded-full px-3 py-1 text-sm font-medium ${
-                              item.active
-                                ? "bg-emerald-500 text-white"
-                                : "bg-slate-200 text-slate-700"
-                            }`}
-                          >
-                            {item.active ? "Active" : "Inactive"}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-5 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setViewingLocation(item)}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
-                            aria-label="View location"
-                          >
-                            <Eye className="size-5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleEdit(item.id)}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
-                            aria-label="Edit location"
-                          >
-                            <Pencil className="size-5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                      </button>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${item.active ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-700"}`}>
+                        {item.active ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => setViewingLocation(item)} className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"><Eye className="size-4" /></button>
+                      <button onClick={() => handleEdit(item.id)} className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"><Pencil className="size-4" /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-          <div className="flex flex-col gap-4 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-5">
-              <p>
-                Showing{" "}
-                <span className="font-semibold text-slate-950">
-                  {filteredLocations.length ? `1-${filteredLocations.length}` : "0-0"}
-                </span>{" "}
-                of <span className="font-semibold text-slate-950">{filteredLocations.length}</span> data
-              </p>
-              <div className="flex items-center gap-3">
-                <span>Rows per page:</span>
-                <button
-                  type="button"
-                  onClick={() => setRowsPerPage((current) => (current === "10" ? "25" : "10"))}
-                  className="inline-flex items-center gap-3 rounded-[0.85rem] border border-slate-200 bg-white px-4 py-2"
-                >
-                  {rowsPerPage}
-                  <ChevronDown className="size-4 text-slate-500" />
-                </button>
-              </div>
+            <div className="flex flex-col gap-4 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap items-center gap-5">
+                <p>
+                  Showing{" "}
+                  <span className="font-semibold text-slate-950">
+                    {filteredLocations.length ? `1-${filteredLocations.length}` : "0-0"}
+                  </span>{" "}
+                  of <span className="font-semibold text-slate-950">{filteredLocations.length}</span> data
+                </p>
+                <div className="flex items-center gap-3">
+                  <span>Rows per page:</span>
+                  <button
+                    type="button"
+                    onClick={() => setRowsPerPage((current) => (current === "10" ? "25" : "10"))}
+                    className="inline-flex items-center gap-3 rounded-[0.85rem] border border-slate-200 bg-white px-4 py-2"
+                  >
+                    {rowsPerPage}
+                    <ChevronDown className="size-4 text-slate-500" />
+                  </button>
+                </div>
             </div>
 
             <div className="flex items-center justify-end gap-2">
