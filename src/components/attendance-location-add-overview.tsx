@@ -279,6 +279,7 @@ export function AttendanceLocationAddOverview({
       }
     )
   }
+  
   // Handler untuk update koordinat dari input manual
   const handleCoordinateUpdate = () => {
     const lat = parseFloat(manualLat)
