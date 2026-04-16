@@ -9,9 +9,11 @@ import {
   CheckCircle2,
   Eye,
   MapPin,
+  Pencil,
   Plus,
   Search,
   UsersRound,
+  X,
 } from "lucide-react"
 import {
   LOCATIONS_STORAGE_KEY,
@@ -53,6 +55,9 @@ export function AttendanceLocationsOverview() {
   const [searchQuery, setSearchQuery] = React.useState("")
   const [rowsPerPage, setRowsPerPage] = React.useState("10")
   const [isOpeningAdd, setIsOpeningAdd] = React.useState(false)
+
+  // State untuk modal view
+  const [viewingLocation, setViewingLocation] = React.useState<AttendanceLocationRecord | null>(null)
 
   React.useEffect(() => {
     setLocations(loadLocationsFromStorage())
@@ -99,6 +104,10 @@ export function AttendanceLocationsOverview() {
     }
   }
 
+  const handleEdit = (id: string) => {
+    router.push(`/dashboard/attendance/locations/edit/${id}`)
+  }
+
   return (
     <div className="space-y-6">
       <section className="rounded-[1.75rem] border border-slate-200 bg-white p-4 sm:p-6">
@@ -120,13 +129,7 @@ export function AttendanceLocationsOverview() {
                 value: activeLocations,
                 icon: CheckCircle2,
                 tone: "text-emerald-500",
-              },
-              {
-                label: "Check-ins Today",
-                value: 0,
-                icon: UsersRound,
-                tone: "text-slate-500",
-              },
+              }          
             ].map((card, index) => (
               <div
                 key={card.label}
@@ -243,12 +246,24 @@ export function AttendanceLocationsOverview() {
                         </div>
                       </td>
                       <td className="px-4 py-5 text-right">
-                        <button
-                          type="button"
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
-                        >
-                          <Eye className="size-5" />
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setViewingLocation(item)}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
+                            aria-label="View location"
+                          >
+                            <Eye className="size-5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleEdit(item.id)}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
+                            aria-label="Edit location"
+                          >
+                            <Pencil className="size-5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -302,6 +317,82 @@ export function AttendanceLocationsOverview() {
           </div>
         </div>
       </section>
+
+      {/* Modal untuk view detail lokasi */}
+      {viewingLocation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-slate-900">Location Details</h2>
+              <button
+                onClick={() => setViewingLocation(null)}
+                className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-slate-500">Name</label>
+                  <p className="mt-1 text-base text-slate-900">{viewingLocation.name}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-500">Code</label>
+                  <p className="mt-1 text-base text-slate-900">{viewingLocation.code}</p>
+                </div>
+                <div className="col-span-2">
+                  <label className="text-sm font-medium text-slate-500">Description</label>
+                  <p className="mt-1 text-base text-slate-900">{viewingLocation.description}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-500">Latitude</label>
+                  <p className="mt-1 text-base text-slate-900">{viewingLocation.latitude.toFixed(8)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-500">Longitude</label>
+                  <p className="mt-1 text-base text-slate-900">{viewingLocation.longitude.toFixed(8)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-500">Radius</label>
+                  <p className="mt-1 text-base text-slate-900">{viewingLocation.radius} meters</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-500">Type</label>
+                  <p className="mt-1 text-base text-slate-900">{viewingLocation.type}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-500">Status</label>
+                  <p className="mt-1">
+                    <span className={`inline-block rounded-full px-3 py-1 text-sm font-medium ${
+                      viewingLocation.active ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-700"
+                    }`}>
+                      {viewingLocation.active ? "Active" : "Inactive"}
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <div className="border-t border-slate-200 pt-4">
+                <p className="text-sm text-slate-500">
+                  <span className="font-medium">Configuration:</span>{" "}
+                  {viewingLocation.requireSelfie ? "Selfie required" : "Selfie optional"},{" "}
+                  {viewingLocation.requireGps ? "GPS required" : "GPS optional"}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setViewingLocation(null)}
+                className="rounded-lg bg-black px-6 py-2 font-medium text-white"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
