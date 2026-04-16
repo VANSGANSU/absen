@@ -125,10 +125,20 @@ export function AttendanceLocationAddOverview({
   const [mapError, setMapError] = React.useState("")
   const [selectedDate] = React.useState(initialDate)
 
+  // State untuk input manual koordinat
+  const [manualLat, setManualLat] = React.useState(coordinates.lat.toFixed(8))
+  const [manualLng, setManualLng] = React.useState(coordinates.lng.toFixed(8))
+
   const mapRef = React.useRef<any>(null)
   const markerRef = React.useRef<any>(null)
   const circleRef = React.useRef<any>(null)
   const mapContainerRef = React.useRef<HTMLDivElement | null>(null)
+
+  // Sinkronisasi input manual saat koordinat berubah (dari peta/search)
+  React.useEffect(() => {
+    setManualLat(coordinates.lat.toFixed(8))
+    setManualLng(coordinates.lng.toFixed(8))
+  }, [coordinates])
 
   React.useEffect(() => {
     let isMounted = true
@@ -268,6 +278,18 @@ export function AttendanceLocationAddOverview({
         setMapError("Unable to access current device location.")
       }
     )
+  }
+
+  // Handler untuk update koordinat dari input manual
+  const handleCoordinateUpdate = () => {
+    const lat = parseFloat(manualLat)
+    const lng = parseFloat(manualLng)
+    if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      setCoordinates({ lat, lng })
+      setMapError("")
+    } else {
+      setMapError("Invalid coordinates. Latitude must be between -90 and 90, longitude between -180 and 180.")
+    }
   }
 
   const handleCreateLocation = () => {
@@ -467,19 +489,34 @@ export function AttendanceLocationAddOverview({
                   <div className="space-y-2">
                     <label className="text-[1.05rem] text-slate-500">Latitude</label>
                     <input
-                      value={coordinates.lat.toFixed(8)}
-                      readOnly
-                      className="w-full rounded-[0.95rem] border border-slate-200 px-4 py-3 text-[1.05rem] text-slate-950 outline-hidden"
+                      value={manualLat}
+                      onChange={(e) => setManualLat(e.target.value)}
+                      onBlur={handleCoordinateUpdate}
+                      onKeyDown={(e) => e.key === "Enter" && handleCoordinateUpdate()}
+                      placeholder="-7.92920184"
+                      className="w-full rounded-[0.95rem] border border-slate-200 px-4 py-3 text-[1.05rem] text-slate-950 outline-none focus:border-blue-500"
                     />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[1.05rem] text-slate-500">Longitude</label>
                     <input
-                      value={coordinates.lng.toFixed(8)}
-                      readOnly
-                      className="w-full rounded-[0.95rem] border border-slate-200 px-4 py-3 text-[1.05rem] text-slate-950 outline-hidden"
+                      value={manualLng}
+                      onChange={(e) => setManualLng(e.target.value)}
+                      onBlur={handleCoordinateUpdate}
+                      onKeyDown={(e) => e.key === "Enter" && handleCoordinateUpdate()}
+                      placeholder="112.68395233"
+                      className="w-full rounded-[0.95rem] border border-slate-200 px-4 py-3 text-[1.05rem] text-slate-950 outline-none focus:border-blue-500"
                     />
                   </div>
+                </div>
+                <div className="px-7 pb-5">
+                  <button
+                    type="button"
+                    onClick={handleCoordinateUpdate}
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    Apply coordinates to map
+                  </button>
                 </div>
               </article>
 
