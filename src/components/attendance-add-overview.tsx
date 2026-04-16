@@ -17,7 +17,6 @@ import {
   UsersRound,
   X,
   Loader2,
-  Plus,
 } from "lucide-react"
 import {
   computeStatus,
@@ -45,10 +44,10 @@ type MemberItem = {
 }
 
 const members: MemberItem[] = [
-  { id: "rery",  name: "ReryAhmad", department: "Absensi", avatar: "", initials: "R" },
-  { id: "riflo", name: "Riflo",     department: "Qurani",  initials: "R" },
-  { id: "miaw",  name: "Miaw",      department: "General", initials: "M" },
-  { id: "yayan", name: "Yayan",     department: "General", initials: "Y" },
+  { id: "rery", name: "ReryAhmad", department: "Absensi", avatar: "", initials: "R" },
+  { id: "riflo", name: "Riflo", department: "Qurani", initials: "R" },
+  { id: "miaw", name: "Miaw", department: "General", initials: "M" },
+  { id: "yayan", name: "Yayan", department: "General", initials: "Y" },
 ]
 
 const departmentOptions: DepartmentOption[] = [
@@ -91,8 +90,8 @@ const emptyTimeFields: TimeFields = { checkIn: "", breakIn: "", breakOut: "", ch
 type BatchMemberTimes = Record<string, TimeFields>
 
 const timeInputConfigs = [
-  { label: "Check In",  field: "checkIn"  as const, icon: LogIn  },
-  { label: "Break In",  field: "breakIn"  as const, icon: Coffee },
+  { label: "Check In", field: "checkIn" as const, icon: LogIn },
+  { label: "Break In", field: "breakIn" as const, icon: Coffee },
   { label: "Break Out", field: "breakOut" as const, icon: Coffee },
   { label: "Check Out", field: "checkOut" as const, icon: LogOut },
 ]
@@ -130,17 +129,17 @@ function RetroTimeCard({
 export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProps) {
   const router = useRouter()
 
-  const [entryMode, setEntryMode]       = React.useState<EntryMode>("single")
-  const [timingMode, setTimingMode]     = React.useState<TimingMode>("realtime")
-  const [searchQuery, setSearchQuery]   = React.useState("")
+  const [entryMode, setEntryMode] = React.useState<EntryMode>("single")
+  const [timingMode, setTimingMode] = React.useState<TimingMode>("realtime")
+  const [searchQuery, setSearchQuery] = React.useState("")
   const [selectedMemberId, setSelectedMemberId] = React.useState<string | null>(null)
   const [selectedDepartment, setSelectedDepartment] = React.useState<DepartmentOption>("All Departments")
-  const [selectedDate, setSelectedDate]             = React.useState(initialDate)
-  const [isDepartmentOpen, setIsDepartmentOpen]     = React.useState(false)
-  const [isCalendarOpen, setIsCalendarOpen]         = React.useState(false)
-  const [addedBatchMembers, setAddedBatchMembers]   = React.useState<string[]>([])
-  const [batchMemberTimes, setBatchMemberTimes]     = React.useState<BatchMemberTimes>({})
-  const [isSubmitting, setIsSubmitting]   = React.useState(false)
+  const [selectedDate, setSelectedDate] = React.useState(initialDate)
+  const [isDepartmentOpen, setIsDepartmentOpen] = React.useState(false)
+  const [isCalendarOpen, setIsCalendarOpen] = React.useState(false)
+  const [addedBatchMembers, setAddedBatchMembers] = React.useState<string[]>([])
+  const [batchMemberTimes, setBatchMemberTimes] = React.useState<BatchMemberTimes>({})
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [submitSuccess, setSubmitSuccess] = React.useState(false)
 
   // Single-entry time fields
@@ -165,13 +164,13 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
   }, [])
 
   const departmentRef = React.useRef<HTMLDivElement | null>(null)
-  const calendarRef   = React.useRef<HTMLDivElement | null>(null)
+  const calendarRef = React.useRef<HTMLDivElement | null>(null)
 
   React.useEffect(() => {
     const handleDown = (e: MouseEvent) => {
       const t = e.target as Node
       if (!departmentRef.current?.contains(t)) setIsDepartmentOpen(false)
-      if (!calendarRef.current?.contains(t))   setIsCalendarOpen(false)
+      if (!calendarRef.current?.contains(t)) setIsCalendarOpen(false)
     }
     window.addEventListener("mousedown", handleDown)
     return () => window.removeEventListener("mousedown", handleDown)
@@ -181,7 +180,9 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
   const selectedMember = members.find((m) => m.id === selectedMemberId) ?? null
 
   // Reset time fields when member changes (single mode)
-  React.useEffect(() => { setTimeFields(emptyTimeFields) }, [selectedMemberId])
+  React.useEffect(() => {
+    setTimeFields(emptyTimeFields)
+  }, [selectedMemberId])
 
   // Open retro modal when switching to retroactive mode and member selected
   React.useEffect(() => {
@@ -193,7 +194,7 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
   // ── Check existing attendance records to prevent duplicate ──────────────────
   const existingRecords = React.useMemo(() => loadAttendanceRecords(), [])
   const memberHasRecordOnDate = React.useCallback(
-    (memberId: string) => existingRecords.some(r => r.memberId === memberId && r.date === selectedDate),
+    (memberId: string) => existingRecords.some((r) => r.memberId === memberId && r.date === selectedDate),
     [existingRecords, selectedDate]
   )
 
@@ -233,15 +234,15 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
   const filteredMembers = members.filter((m) => {
     const matchesSearch = m.name.toLowerCase().includes(searchQuery.trim().toLowerCase())
     const matchesDept =
-      entryMode === "single" || selectedDepartment === "All Departments"
-        ? true
-        : m.department === selectedDepartment
+      entryMode === "single" || selectedDepartment === "All Departments" ? true : m.department === selectedDepartment
     return matchesSearch && matchesDept
   })
 
-  const calendarDate  = React.useMemo(() => new Date(`${selectedDate}T09:00:00+07:00`), [selectedDate])
+  const calendarDate = React.useMemo(() => new Date(`${selectedDate}T09:00:00+07:00`), [selectedDate])
   const calendarCells = React.useMemo(() => getCalendarCells(calendarDate), [calendarDate])
-  const addableCount  = filteredMembers.filter((m) => !addedBatchMembers.includes(m.id) && !memberHasRecordOnDate(m.id)).length
+  const addableCount = filteredMembers.filter(
+    (m) => !addedBatchMembers.includes(m.id) && !memberHasRecordOnDate(m.id)
+  ).length
 
   const updateTimeField = (field: keyof TimeFields, value: string) =>
     setTimeFields((prev) => ({ ...prev, [field]: value }))
@@ -252,14 +253,11 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
       [memberId]: { ...(prev[memberId] ?? emptyTimeFields), [field]: value },
     }))
 
-  const getBatchMemberTime = (memberId: string): TimeFields =>
-    batchMemberTimes[memberId] ?? emptyTimeFields
+  const getBatchMemberTime = (memberId: string): TimeFields => batchMemberTimes[memberId] ?? emptyTimeFields
 
   const toggleBatchMember = (memberId: string) => {
     if (memberHasRecordOnDate(memberId)) return
-    setAddedBatchMembers((cur) =>
-      cur.includes(memberId) ? cur.filter((id) => id !== memberId) : [...cur, memberId]
-    )
+    setAddedBatchMembers((cur) => (cur.includes(memberId) ? cur.filter((id) => id !== memberId) : [...cur, memberId]))
   }
 
   // ── Submit handlers ───────────────────────────────────────────────────────────
@@ -271,7 +269,7 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
     }
     setIsSubmitting(true)
     const existing = loadAttendanceRecords()
-    const checkIn  = timeFields.checkIn  || null
+    const checkIn = timeFields.checkIn || null
     const checkOut = timeFields.checkOut || null
     persistAttendanceRecords([
       {
@@ -281,16 +279,19 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
         memberDepartment: selectedMember.department,
         date: selectedDate,
         checkIn,
-        breakIn:  timeFields.breakIn  || null,
+        breakIn: timeFields.breakIn || null,
         breakOut: timeFields.breakOut || null,
         checkOut,
-        status:    computeStatus(checkIn),
+        status: computeStatus(checkIn),
         workHours: computeWorkHours(checkIn, checkOut),
       } satisfies AttendanceRecordEntry,
       ...existing,
     ])
     setSubmitSuccess(true)
-    window.setTimeout(() => { router.push("/dashboard/attendance/list"); router.refresh() }, 600)
+    window.setTimeout(() => {
+      router.push("/dashboard/attendance/list")
+      router.refresh()
+    }, 600)
   }
 
   const handleRetroSubmit = () => {
@@ -300,7 +301,7 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
 
   const handleBatchSubmit = () => {
     if (!addedBatchMembers.length) return
-    const validMembers = addedBatchMembers.filter(id => !memberHasRecordOnDate(id))
+    const validMembers = addedBatchMembers.filter((id) => !memberHasRecordOnDate(id))
     if (validMembers.length === 0) {
       alert("All selected members already have attendance records for this date.")
       return
@@ -309,10 +310,10 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
     const existing = loadAttendanceRecords()
     const now = getCurrentTime()
     const newRecords: AttendanceRecordEntry[] = validMembers.map((memberId) => {
-      const member  = members.find((m) => m.id === memberId)!
-      const times   = getBatchMemberTime(memberId)
-      const checkIn  = timingMode === "realtime" ? now    : (times.checkIn  || null)
-      const checkOut = timingMode === "realtime" ? null   : (times.checkOut || null)
+      const member = members.find((m) => m.id === memberId)!
+      const times = getBatchMemberTime(memberId)
+      const checkIn = timingMode === "realtime" ? now : times.checkIn || null
+      const checkOut = timingMode === "realtime" ? null : times.checkOut || null
       return {
         id: `rec_${Date.now()}_${memberId}`,
         memberId: member.id,
@@ -320,16 +321,19 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
         memberDepartment: member.department,
         date: selectedDate,
         checkIn,
-        breakIn:  timingMode === "realtime" ? null : (times.breakIn  || null),
-        breakOut: timingMode === "realtime" ? null : (times.breakOut || null),
+        breakIn: timingMode === "realtime" ? null : times.breakIn || null,
+        breakOut: timingMode === "realtime" ? null : times.breakOut || null,
         checkOut,
-        status:    computeStatus(checkIn),
+        status: computeStatus(checkIn),
         workHours: computeWorkHours(checkIn, checkOut),
       }
     })
     persistAttendanceRecords([...newRecords, ...existing])
     setSubmitSuccess(true)
-    window.setTimeout(() => { router.push("/dashboard/attendance/list"); router.refresh() }, 600)
+    window.setTimeout(() => {
+      router.push("/dashboard/attendance/list")
+      router.refresh()
+    }, 600)
   }
 
   // ── Reusable timing mode toggle ───────────────────────────────────────────────
@@ -355,9 +359,19 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
   )
 
   // ── Member avatar ─────────────────────────────────────────────────────────────
-  const MemberAvatar = ({ member, isAdded, isDisabled }: { member: MemberItem; isAdded?: boolean; isDisabled?: boolean }) =>
+  const MemberAvatar = ({
+    member,
+    isAdded,
+    isDisabled,
+  }: {
+    member: MemberItem
+    isAdded?: boolean
+    isDisabled?: boolean
+  }) =>
     member.avatar ? (
-      <div className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-slate-100 ${isDisabled ? "opacity-50" : ""}`}>
+      <div
+        className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-slate-100 ${isDisabled ? "opacity-50" : ""}`}
+      >
         <img src={member.avatar} alt={member.name} className="h-full w-full object-cover" />
         {isAdded && (
           <div className="absolute inset-0 flex items-center justify-center rounded-full bg-blue-600/80">
@@ -366,10 +380,15 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
         )}
       </div>
     ) : (
-      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full border text-[1.05rem] transition ${
-        isDisabled ? "border-slate-200 bg-slate-100 text-slate-400" :
-        isAdded ? "border-blue-400 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-500"
-      }`}>
+      <div
+        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full border text-[1.05rem] transition ${
+          isDisabled
+            ? "border-slate-200 bg-slate-100 text-slate-400"
+            : isAdded
+              ? "border-blue-400 bg-blue-600 text-white"
+              : "border-slate-200 bg-white text-slate-500"
+        }`}
+      >
         {isAdded ? <X className="size-4" /> : member.initials}
       </div>
     )
@@ -390,7 +409,11 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
         <div className="absolute left-0 top-[calc(100%+0.5rem)] z-40 w-[17.5rem] overflow-hidden rounded-[1rem] border border-slate-200 bg-white shadow-xl">
           <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
             <span className="text-[1.1rem] font-semibold text-slate-950">
-              {new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "Asia/Jakarta" }).format(calendarDate)}
+              {new Intl.DateTimeFormat("en-US", {
+                month: "long",
+                year: "numeric",
+                timeZone: "Asia/Jakarta",
+              }).format(calendarDate)}
             </span>
             <div className="flex items-center gap-2 text-slate-500">
               <ChevronLeft className="size-5" />
@@ -398,8 +421,10 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
             </div>
           </div>
           <div className="grid grid-cols-7 gap-1 px-4 pb-4 pt-3 text-center">
-            {["Su","Mo","Tu","We","Th","Fr","Sa"].map((d) => (
-              <div key={d} className="py-2 text-sm font-medium text-slate-500">{d}</div>
+            {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+              <div key={d} className="py-2 text-sm font-medium text-slate-500">
+                {d}
+              </div>
             ))}
             {calendarCells.map((cell) => {
               const iso = cell.date.toISOString().slice(0, 10)
@@ -408,11 +433,16 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
                 <button
                   key={iso}
                   type="button"
-                  onClick={() => { setSelectedDate(iso); setIsCalendarOpen(false) }}
+                  onClick={() => {
+                    setSelectedDate(iso)
+                    setIsCalendarOpen(false)
+                  }}
                   className={`flex h-9 items-center justify-center rounded-[0.7rem] text-[1.05rem] ${
-                    active ? "bg-blue-600 font-semibold text-white"
-                      : cell.inMonth ? "text-slate-900 hover:bg-slate-50"
-                      : "text-slate-400"
+                    active
+                      ? "bg-blue-600 font-semibold text-white"
+                      : cell.inMonth
+                        ? "text-slate-900 hover:bg-slate-50"
+                        : "text-slate-400"
                   }`}
                 >
                   {cell.date.getDate()}
@@ -421,8 +451,19 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
             })}
           </div>
           <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-[1.05rem]">
-            <button type="button" onClick={() => setSelectedDate(initialDate)} className="text-blue-600">Clear</button>
-            <button type="button" onClick={() => { setSelectedDate(new Date().toISOString().slice(0,10)); setIsCalendarOpen(false) }} className="text-blue-600">Today</button>
+            <button type="button" onClick={() => setSelectedDate(initialDate)} className="text-blue-600">
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedDate(new Date().toISOString().slice(0, 10))
+                setIsCalendarOpen(false)
+              }}
+              className="text-blue-600"
+            >
+              Today
+            </button>
           </div>
         </div>
       )}
@@ -434,23 +475,24 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
     <div className="space-y-6">
       <section className="rounded-[1.75rem] border border-slate-200 bg-white p-4 sm:p-6">
         <div className="space-y-6">
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-[2.15rem]">
-            Add Attendance
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-[2.15rem]">Add Attendance</h1>
 
           {/* Entry mode tabs */}
           <div className="rounded-[1.1rem] bg-slate-50 p-1">
             <div className="grid grid-cols-2 gap-1">
               {[
                 { label: "Single Entry", value: "single" as EntryMode },
-                { label: "Batch Entry",  value: "batch"  as EntryMode },
+                { label: "Batch Entry", value: "batch" as EntryMode },
               ].map((item) => (
                 <button
                   key={item.value}
                   type="button"
                   onClick={() => {
                     setEntryMode(item.value)
-                    if (item.value === "single") { setAddedBatchMembers([]); setBatchMemberTimes({}) }
+                    if (item.value === "single") {
+                      setAddedBatchMembers([])
+                      setBatchMemberTimes({})
+                    }
                   }}
                   className={`rounded-[0.95rem] px-4 py-2.5 text-[1.05rem] font-medium transition ${
                     entryMode === item.value
@@ -558,9 +600,9 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
               <div className="mt-5 space-y-2">
                 {filteredMembers.map((member) => {
                   const isSelectedSingle = selectedMemberId === member.id
-                  const isAddedBatch     = addedBatchMembers.includes(member.id)
-                  const hasRecord        = memberHasRecordOnDate(member.id)
-                  const isDisabled       = hasRecord
+                  const isAddedBatch = addedBatchMembers.includes(member.id)
+                  const hasRecord = memberHasRecordOnDate(member.id)
+                  const isDisabled = hasRecord
 
                   return (
                     <button
@@ -576,31 +618,42 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
                         isDisabled
                           ? "cursor-not-allowed opacity-50"
                           : entryMode === "single"
-                            ? isSelectedSingle ? "bg-slate-100" : "hover:bg-slate-50"
+                            ? isSelectedSingle
+                              ? "bg-slate-100"
+                              : "hover:bg-slate-50"
                             : isAddedBatch
                               ? "bg-blue-50 ring-1 ring-blue-200"
                               : "hover:bg-slate-50"
                       }`}
                     >
-                      <MemberAvatar member={member} isAdded={entryMode === "batch" && isAddedBatch} isDisabled={isDisabled} />
+                      <MemberAvatar
+                        member={member}
+                        isAdded={entryMode === "batch" && isAddedBatch}
+                        isDisabled={isDisabled}
+                      />
                       <div className="min-w-0 flex-1">
-                        <p className={`text-[1.05rem] font-semibold ${
-                          isDisabled ? "text-slate-400" :
-                          entryMode === "batch" && isAddedBatch ? "text-blue-700" : "text-slate-950"
-                        }`}>
+                        <p
+                          className={`text-[1.05rem] font-semibold ${
+                            isDisabled
+                              ? "text-slate-400"
+                              : entryMode === "batch" && isAddedBatch
+                                ? "text-blue-700"
+                                : "text-slate-950"
+                          }`}
+                        >
                           {member.name}
                         </p>
                         <p className="text-[0.95rem] uppercase tracking-[0.08em] text-slate-400">
                           {member.department}
                         </p>
-                        {isDisabled && (
-                          <p className="mt-1 text-xs font-medium text-red-500">Already recorded</p>
-                        )}
+                        {isDisabled && <p className="mt-1 text-xs font-medium text-red-500">Already recorded</p>}
                       </div>
                       {entryMode === "batch" && !isDisabled && (
-                        <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          isAddedBatch ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
-                        }`}>
+                        <span
+                          className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            isAddedBatch ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+                          }`}
+                        >
                           {isAddedBatch ? "Added" : "Add"}
                         </span>
                       )}
@@ -612,7 +665,6 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
 
             {/* ── Main panel ── */}
             <div className="min-h-[34rem] rounded-[1.5rem] border border-dashed border-slate-300 bg-white p-5">
-
               {/* ════ SINGLE ENTRY ════ */}
               {entryMode === "single" ? (
                 selectedMember ? (
@@ -626,18 +678,6 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
                     {timingMode === "realtime" ? (
                       /* ── HORIZONTAL GRID LAYOUT (4 KOLOM) ── */
                       <div className="relative space-y-5">
-                        {/* Loading overlay */}
-                        {loadingAction && (
-                          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[1.5rem] bg-slate-900/20 backdrop-blur-[1px]">
-                            <div className="flex items-center gap-3 rounded-full bg-white/90 px-6 py-3 shadow-lg">
-                              <Loader2 className="size-6 animate-spin text-blue-600" />
-                              <span className="text-[1.1rem] font-medium text-slate-700">
-                                Recording {loadingAction}...
-                              </span>
-                            </div>
-                          </div>
-                        )}
-
                         {/* Header: Shift info & live clock */}
                         <div className="flex items-center justify-between rounded-[1.25rem] border border-slate-200 bg-slate-50/80 p-5">
                           <div>
@@ -667,39 +707,44 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
                             return (
                               <div
                                 key={item.field}
-                                className="flex flex-col items-center rounded-xl border border-slate-200 bg-white p-4"
+                                className={`relative flex flex-col items-center rounded-xl border border-slate-200 bg-white p-4 transition ${
+                                  isLoading ? "bg-slate-200/60" : ""
+                                }`}
                               >
-                                <div className={`mb-3 rounded-full p-3 ${
-                                  filled ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-500"
-                                }`}>
+                                {/* Overlay spinner hanya di kartu yang sedang loading */}
+                                {isLoading && (
+                                  <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-slate-200/60">
+                                    <Loader2 className="size-8 animate-spin text-slate-600" />
+                                  </div>
+                                )}
+
+                                <div
+                                  className={`mb-3 rounded-full p-3 ${
+                                    filled ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-500"
+                                  }`}
+                                >
                                   <Icon className="size-6" />
                                 </div>
                                 <div className="text-center">
                                   <div className="text-[0.9rem] font-semibold uppercase tracking-wide text-slate-700">
                                     {item.label}
                                   </div>
-                                  <div className={`mt-2 text-xl font-mono font-medium ${
-                                    filled ? "text-slate-900" : "text-slate-400"
-                                  }`}>
+                                  <div
+                                    className={`mt-2 text-xl font-mono font-medium ${
+                                      filled ? "text-slate-900" : "text-slate-400"
+                                    }`}
+                                  >
                                     {timeFields[item.field] || "--:--"}
                                   </div>
                                 </div>
+                                {/* Tombol transparan menutupi seluruh kartu */}
                                 <button
                                   type="button"
                                   onClick={() => handleStamp(item.field)}
                                   disabled={isDisabled}
-                                  className={`mt-4 flex h-10 w-10 items-center justify-center rounded-full transition ${
-                                    isDisabled
-                                      ? "bg-slate-100 text-slate-300 cursor-not-allowed"
-                                      : "bg-blue-50 text-blue-600 hover:bg-blue-100"
-                                  }`}
-                                >
-                                  {isLoading ? (
-                                    <Loader2 className="size-5 animate-spin" />
-                                  ) : (
-                                    <Plus className="size-5" />
-                                  )}
-                                </button>
+                                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                                  aria-label={`Record ${item.label}`}
+                                />
                               </div>
                             )
                           })}
@@ -709,18 +754,14 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
                         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                           <div className="flex items-center justify-between text-sm">
                             <span className="font-medium text-slate-700">
-                              {timeFields.checkIn ? (
-                                <>Check‑in recorded at {timeFields.checkIn}</>
-                              ) : (
-                                "Not checked in"
-                              )}
+                              {timeFields.checkIn ? <>Check‑in recorded at {timeFields.checkIn}</> : "Not checked in"}
                             </span>
                             <span className="text-slate-500">
                               {(() => {
                                 const now = new Date()
                                 const mins = now.getHours() * 60 + now.getMinutes()
-                                if (mins < 7*60+35) return "Break starts at 07:35"
-                                if (mins <= 13*60) return "Break available now"
+                                if (mins < 7 * 60 + 35) return "Break starts at 07:35"
+                                if (mins <= 13 * 60) return "Break available now"
                                 return "Break period ended"
                               })()}
                             </span>
@@ -763,7 +804,6 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
                     ) : (
                       /* ── RETROACTIVE MODE (will show modal) ── */
                       <div className="relative space-y-5">
-                        {/* Placeholder message while modal is open, or show something else */}
                         <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
                           <p className="text-slate-500">Retroactive mode selected.</p>
                           <p className="mt-2 text-sm text-slate-400">Please fill in the time form that appears.</p>
@@ -781,9 +821,8 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
                     </div>
                   </div>
                 )
-
-              /* ════ BATCH ENTRY ════ */
               ) : addedBatchMembers.length ? (
+                /* ════ BATCH ENTRY ════ */
                 <div className="space-y-4">
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {members
@@ -816,9 +855,7 @@ export function AttendanceAddOverview({ initialDate }: AttendanceAddOverviewProp
                                 </div>
                                 <p className="mt-1 text-[1.15rem] font-semibold text-blue-700">
                                   {liveClock}
-                                  <span className="ml-1.5 text-[0.75rem] font-normal text-blue-400">
-                                    (approx.)
-                                  </span>
+                                  <span className="ml-1.5 text-[0.75rem] font-normal text-blue-400">(approx.)</span>
                                 </p>
                               </div>
                             ) : (
