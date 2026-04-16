@@ -116,7 +116,7 @@ export function AttendanceLocationsOverview() {
             Location
           </h1>
 
-          <div className="grid overflow-hidden rounded-[1rem] border border-slate-200 bg-white xl:grid-cols-3">
+          <div className="grid overflow-hidden rounded-[1rem] border border-slate-200 bg-white xl:grid-cols-2">
             {[
               {
                 label: "Total Locations",
