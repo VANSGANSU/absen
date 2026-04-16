@@ -111,48 +111,61 @@ function getRangeLabel(selectedRange: SharedDashboardRange, currentTime: Date) {
 
 /** Menentukan apakah sebuah record masuk ke range yang dipilih */
 function isInRange(record: AttendanceRecordEntry, selectedRange: SharedDashboardRange, now: Date): boolean {
-  const recordDate = new Date(`${record.date}T00:00:00+07:00`)
-  const today = new Date(now)
-  today.setHours(0, 0, 0, 0)
+  const recordDate = record.date; // "YYYY-MM-DD"
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+
+  const toLocalDateString = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
 
   switch (selectedRange) {
     case "Today": {
-      return record.date === today.toISOString().slice(0, 10)
+      return recordDate === toLocalDateString(today);
     }
     case "Yesterday": {
-      const yest = new Date(today)
-      yest.setDate(yest.getDate() - 1)
-      return record.date === yest.toISOString().slice(0, 10)
+      const yest = new Date(today);
+      yest.setDate(yest.getDate() - 1);
+      return recordDate === toLocalDateString(yest);
     }
     case "This week": {
-      const start = getStartOfWeek(today)
-      const end = getEndOfWeek(today)
-      return recordDate >= start && recordDate <= end
+      const start = getStartOfWeek(today);
+      const end = getEndOfWeek(today);
+      const recordAsDate = new Date(`${recordDate}T00:00:00+07:00`);
+      return recordAsDate >= start && recordAsDate <= end;
     }
     case "This month": {
-      const start = getStartOfMonth(today)
-      const end = getEndOfMonth(today)
-      return recordDate >= start && recordDate <= end
+      const start = getStartOfMonth(today);
+      const end = getEndOfMonth(today);
+      const recordAsDate = new Date(`${recordDate}T00:00:00+07:00`);
+      return recordAsDate >= start && recordAsDate <= end;
     }
     case "This year": {
-      const start = getStartOfYear(today.getFullYear())
-      const end = getEndOfYear(today.getFullYear())
-      return recordDate >= start && recordDate <= end
+      const start = getStartOfYear(today.getFullYear());
+      const end = getEndOfYear(today.getFullYear());
+      const recordAsDate = new Date(`${recordDate}T00:00:00+07:00`);
+      return recordAsDate >= start && recordAsDate <= end;
     }
     case "Last year": {
-      const start = getStartOfYear(today.getFullYear() - 1)
-      const end = getEndOfYear(today.getFullYear() - 1)
-      return recordDate >= start && recordDate <= end
+      const start = getStartOfYear(today.getFullYear() - 1);
+      const end = getEndOfYear(today.getFullYear() - 1);
+      const recordAsDate = new Date(`${recordDate}T00:00:00+07:00`);
+      return recordAsDate >= start && recordAsDate <= end;
     }
     case "Last 7 days": {
-      const start = new Date(today)
-      start.setDate(start.getDate() - 6)
-      return recordDate >= start && recordDate <= today
+      const start = new Date(today);
+      start.setDate(start.getDate() - 6);
+      const recordAsDate = new Date(`${recordDate}T00:00:00+07:00`);
+      return recordAsDate >= start && recordAsDate <= today;
     }
     case "Last 30 days": {
-      const start = new Date(today)
-      start.setDate(start.getDate() - 29)
-      return recordDate >= start && recordDate <= today
+      const start = new Date(today);
+      start.setDate(start.getDate() - 29);
+      const recordAsDate = new Date(`${recordDate}T00:00:00+07:00`);
+      return recordAsDate >= start && recordAsDate <= today;
     }
   }
 }
