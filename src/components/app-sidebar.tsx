@@ -20,7 +20,7 @@ const data = {
     {
       name: "MAGANG UBIG",
       logo: GalleryVerticalEnd,
-      plan: "Active",
+      plan: "Offline",
     },
     {
       name: "Timesheet Ops",

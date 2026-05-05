@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 
-import { AUTH_MESSAGES, isUnconfirmedEmail } from "@/lib/auth"
+import { AUTH_MESSAGES } from "@/lib/auth"
+import { getEmailValidationMessage, normalizeEmail } from "@/lib/auth-validation"
+import { createClient } from "@/lib/supabase/server"
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as
@@ -10,20 +12,35 @@ export async function POST(request: Request) {
     | null
 
   const email = body?.email?.trim() ?? ""
+  const emailError = getEmailValidationMessage(email)
 
-  if (!email) {
+  if (emailError) {
     return NextResponse.json(
-      { message: AUTH_MESSAGES.missingResetEmail },
+      {
+        message: emailError,
+        fieldErrors: {
+          email: emailError,
+        },
+      },
       { status: 400 }
     )
   }
 
-  if (isUnconfirmedEmail(email)) {
+  const supabase = await createClient()
+  const origin = new URL(request.url).origin
+  const { error } = await supabase.auth.resetPasswordForEmail(normalizeEmail(email), {
+    redirectTo: `${origin}/auth/update-password`,
+  })
+
+  if (error) {
     return NextResponse.json(
-      { message: AUTH_MESSAGES.emailNotConfirmed },
-      { status: 403 }
+      { message: error.message },
+      { status: 400 }
     )
   }
 
-  return NextResponse.json({ ok: true, message: AUTH_MESSAGES.resetSent })
+  return NextResponse.json({
+    ok: true,
+    message: AUTH_MESSAGES.resetSent,
+  })
 }

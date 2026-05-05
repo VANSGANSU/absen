@@ -1,2 +1,1 @@
-export { default } from "../page"
-
+export { default } from "@/components/(members)/fingerprint-page"

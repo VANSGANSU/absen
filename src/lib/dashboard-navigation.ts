@@ -21,14 +21,15 @@ import {
   MapPin,
   MonitorCog,
   ScanSearch,
-  Settings2,
-  Sparkles,
+  Settings,
   TimerReset,
   TrendingUp,
   Users,
   UserRound,
   Waypoints,
   Workflow,
+  Highlighter,
+  Bell,
 } from "lucide-react"
 
 export const dashboardNavigation = [
@@ -72,10 +73,11 @@ export const dashboardNavigation = [
     url: "/dashboard/insight",
     icon: Lightbulb,
     items: [
-      { title: "Highlights", url: "/dashboard/insight/highlights", icon: Sparkles },
+      { title: "Highlights", url: "/dashboard/insight/highlights", icon: Highlighter },
       { title: "Performance", url: "/dashboard/insight/performance", icon: TrendingUp },
       { title: "Timeline", url: "/dashboard/insight/timeline", icon: TimerReset },
       { title: "Unusual Activity", url: "/dashboard/insight/unusual-activity", icon: Activity },
+      { title: "Smart Notification", url: "/dashboard/insight/smart-notification", icon: Bell },
     ],
   },
   {
@@ -130,10 +132,10 @@ export const dashboardNavigation = [
   },
   {
     title: "Configuration",
-    url: "/dashboard/configuration",
-    icon: Settings2,
+    url: "/dashboard/configuration/feature-settings",
+    icon: Settings,
     items: [
-      { title: "Feature Settings", url: "/dashboard/configuration/feature-settings", icon: Settings2 },
+      { title: "Feature Settings", url: "/dashboard/configuration/feature-settings", icon: Settings },
       { title: "Organization Settings", url: "/dashboard/configuration/organization-settings", icon: MonitorCog },
       { title: "Applications", url: "/dashboard/configuration/applications", icon: AppWindow },
     ],

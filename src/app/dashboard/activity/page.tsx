@@ -1,1 +1,5 @@
-export { default } from "../field/page"
+import { redirect } from "next/navigation"
+
+export default function ActivityPage() {
+  redirect("/dashboard/activity/screenshots")
+}

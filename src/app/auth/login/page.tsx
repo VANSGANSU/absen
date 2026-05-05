@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 
-import { SignInPage } from "@/components/sign-in-page"
+import { SignInPage } from "@/components/(login)/sign-in-page"
 import { getSessionUser } from "@/lib/auth"
 
 export default async function LoginPage() {

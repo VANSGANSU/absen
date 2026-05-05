@@ -107,13 +107,13 @@ function Sidebar({
       data-state={open ? "expanded" : "collapsed"}
       data-collapsible={isCollapsed ? "icon" : collapsible === "none" ? "none" : ""}
       className={cn(
-        "group/sidebar shrink-0 border-r border-border bg-sidebar text-sidebar-foreground",
+        "group/sidebar flex h-screen flex-col shrink-0 border-r border-border bg-sidebar text-sidebar-foreground",
         isMobile
           ? cn(
-              "fixed inset-y-0 left-0 z-50 block h-screen w-[min(18rem,calc(100vw-1.5rem))] transition-transform duration-200 md:hidden",
+              "fixed inset-y-0 left-0 z-50 flex h-screen w-[min(18rem,calc(100vw-1.5rem))] flex-col transition-transform duration-200 md:hidden",
               open ? "translate-x-0" : "-translate-x-full"
             )
-          : cn("hidden transition-[width] duration-200 md:block", isCollapsed ? "w-20" : "w-72"),
+          : cn("hidden h-screen sticky top-0 transition-[width] duration-350 ease-in-out md:block z-50", isCollapsed ? "w-14" : "w-72"),
         className
       )}
       {...props}
@@ -125,7 +125,7 @@ function SidebarHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sidebar-header"
-      className={cn("flex flex-col gap-2 border-b border-border p-2", className)}
+      className={cn("flex flex-col gap-2 border-b border-border p-2 transition-all duration-300 group-data-[state=collapsed]/sidebar:p-1", className)}
       {...props}
     />
   )
@@ -135,7 +135,10 @@ function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sidebar-content"
-      className={cn("flex min-h-0 flex-1 flex-col gap-2 overflow-auto p-2", className)}
+      className={cn(
+        "flex min-h-0 flex-1 flex-col gap-2 overflow-auto p-2",
+        className
+      )}
       {...props}
     />
   )
@@ -145,7 +148,7 @@ function SidebarFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sidebar-footer"
-      className={cn("border-t border-border p-2", className)}
+      className={cn("border-t border-border p-2 transition-all duration-300 group-data-[state=collapsed]/sidebar:p-1", className)}
       {...props}
     />
   )
@@ -155,7 +158,10 @@ function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
   return (
     <main
       data-slot="sidebar-inset"
-      className={cn("flex min-w-0 flex-1 flex-col bg-background", className)}
+      className={cn(
+        "flex h-screen max-h-screen min-w-0 flex-1 flex-col overflow-y-auto bg-background scrollbar-premium",
+        className
+      )}
       {...props}
     />
   )
@@ -228,15 +234,19 @@ function SidebarMenu({ className, ...props }: React.ComponentProps<"ul">) {
   )
 }
 
-function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
+const SidebarMenuItem = React.forwardRef<
+  HTMLLIElement,
+  React.ComponentProps<"li">
+>(function SidebarMenuItem({ className, ...props }, ref) {
   return (
     <li
+      ref={ref}
       data-slot="sidebar-menu-item"
       className={cn("group/menu-item relative", className)}
       {...props}
     />
   )
-}
+})
 
 function SidebarMenuButton({
   asChild = false,
@@ -254,21 +264,31 @@ function SidebarMenuButton({
   const Comp = asChild ? Slot : "button"
 
   return (
-    <Comp
-      data-slot="sidebar-menu-button"
-      data-size={size}
-      data-active={isActive}
-      title={typeof tooltip === "string" ? tooltip : undefined}
-      className={cn(
-        "flex w-full items-center gap-2 overflow-hidden rounded-md px-2 py-2 text-left text-sm outline-hidden transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-        size === "sm" && "h-8 text-xs",
-        size === "default" && "h-9",
-        size === "lg" && "h-12",
-        isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
-        className
+    <>
+      <Comp
+        data-slot="sidebar-menu-button"
+        data-size={size}
+        data-active={isActive}
+        className={cn(
+          "flex w-full items-center gap-2 overflow-visible rounded-md px-2 py-2 text-left text-sm outline-hidden transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group/menu-button relative",
+          size === "sm" && "h-8 text-xs",
+          size === "default" && "h-9",
+          size === "lg" && "h-12",
+          isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
+          "group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-0",
+          className
+        )}
+        {...props}
+      >
+        {props.children}
+      </Comp>
+      {tooltip && (
+        <span className="fixed left-[64px] z-[9999] hidden rounded-[8px] bg-black px-3 py-1.5 text-[11px] font-bold tracking-wide text-sky-400 shadow-2xl group-hover/menu-button:block group-data-[state=expanded]/sidebar:!hidden animate-in fade-in slide-in-from-left-2 whitespace-nowrap pointer-events-none">
+          {tooltip}
+          <div className="absolute top-1/2 -left-1 -translate-y-1/2 border-y-[6px] border-y-transparent border-r-[6px] border-r-black" />
+        </span>
       )}
-      {...props}
-    />
+    </>
   )
 }
 

@@ -1,9 +1,14 @@
 import "server-only"
 
-import { createHmac, timingSafeEqual } from "node:crypto"
-
-import { cookies } from "next/headers"
+import type { User } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
+
+import { createClient } from "@/lib/supabase/server"
+import {
+  getEmailValidationMessage,
+  getPasswordValidationMessage,
+  normalizeEmail,
+} from "@/lib/auth-validation"
 
 export type SessionUser = {
   id: string
@@ -13,185 +18,89 @@ export type SessionUser = {
   initials: string
 }
 
-type MockUserRecord = SessionUser & {
-  password: string
-  confirmed: boolean
-}
-
-type SessionPayload = {
-  user: SessionUser
-  expiresAt: number
-}
-
-const SESSION_DURATION_SECONDS = 60 * 60 * 8
-const SESSION_SECRET =
-  process.env.SESSION_SECRET ?? "absensi-dev-secret-change-this"
-
-export const SESSION_COOKIE_NAME = "absensi_session"
-
 export const AUTH_MESSAGES = {
+  invalidCredentials: "Email atau password yang Anda masukkan salah.",
   emailNotConfirmed:
     "You cannot login until you confirm your email address. We just emailed you a confirmation.",
-  invalidCredentials: "Email atau password yang Anda masukkan salah.",
+  loginFailed: "Terjadi kesalahan saat mencoba masuk ke aplikasi.",
+  logoutFailed: "Terjadi kesalahan saat keluar dari aplikasi.",
+  registerSuccess:
+    "Akun berhasil dibuat. Silakan cek email Anda untuk konfirmasi sebelum login.",
+  registerLoggedIn: "Akun berhasil dibuat dan Anda sudah masuk ke aplikasi.",
   resetSent:
     "Instruksi reset password sudah kami kirim ke email yang Anda masukkan.",
-  missingResetEmail:
-    "Masukkan email kerja terlebih dahulu sebelum meminta reset password.",
-  missingCredentials: "Masukkan email dan password terlebih dahulu.",
+  updatePasswordSuccess: "Password berhasil diperbarui. Silakan login kembali.",
 } as const
 
-const MOCK_USERS: MockUserRecord[] = [
-  {
-    id: "usr_demo_absensi",
-    name: "Demo Absensi",
-    email: "demo@absensi.com",
-    password: "Absensi123!",
-    confirmed: true,
-    avatar: "",
-    initials: "DA",
-  },
-  {
-    id: "usr_pending_absensi",
-    name: "Pending User",
-    email: "pending@absensi.com",
-    password: "Absensi123!",
-    confirmed: false,
-    avatar: "",
-    initials: "PU",
-  },
-  {
-    id: "usr_unconfirmed_absensi",
-    name: "Unconfirmed User",
-    email: "unconfirmed@absensi.com",
-    password: "Absensi123!",
-    confirmed: false,
-    avatar: "",
-    initials: "UU",
-  },
-  {
-    id: "usr_coba_absensi",
-    name: "Coba User",
-    email: "coba87405@gmail.com",
-    password: "Absensi123!",
-    confirmed: false,
-    avatar: "",
-    initials: "CU",
-  },
-]
+function getInitials(name: string, email: string) {
+  const cleanedName = name.trim()
 
-export function normalizeEmail(email: string) {
-  return email.trim().toLowerCase()
+  if (cleanedName) {
+    const parts = cleanedName.split(/\s+/).slice(0, 2)
+    return parts.map((part) => part.charAt(0).toUpperCase()).join("")
+  }
+
+  return email.slice(0, 2).toUpperCase()
 }
 
-function publicUserFromRecord(user: MockUserRecord): SessionUser {
+export function mapSupabaseUser(user: User): SessionUser {
+  const metadata = user.user_metadata ?? {}
+  const email = normalizeEmail(user.email ?? "")
+  const name =
+    typeof metadata.full_name === "string" && metadata.full_name.trim()
+      ? metadata.full_name.trim()
+      : email.split("@")[0] || "Absensi User"
+  const avatar =
+    typeof metadata.avatar_url === "string" ? metadata.avatar_url : ""
+
   return {
     id: user.id,
-    name: user.name,
-    email: user.email,
-    avatar: user.avatar,
-    initials: user.initials,
+    name,
+    email,
+    avatar,
+    initials: getInitials(name, email),
   }
 }
 
-export function findMockUserByEmail(email: string) {
-  const normalizedEmail = normalizeEmail(email)
+export function getAuthErrorMessage(message?: string | null) {
+  const normalizedMessage = (message ?? "").toLowerCase()
 
-  return MOCK_USERS.find((user) => normalizeEmail(user.email) === normalizedEmail)
-}
-
-export function isUnconfirmedEmail(email: string) {
-  const normalizedEmail = normalizeEmail(email)
-  const matchedUser = findMockUserByEmail(normalizedEmail)
-
-  if (matchedUser) {
-    return !matchedUser.confirmed
+  if (!normalizedMessage) {
+    return AUTH_MESSAGES.loginFailed
   }
 
-  return (
-    normalizedEmail.includes("unconfirmed") ||
-    normalizedEmail.includes("pending") ||
-    normalizedEmail === "coba87405@gmail.com"
-  )
-}
-
-export function validateCredentials(email: string, password: string) {
-  const matchedUser = findMockUserByEmail(email)
-
-  if (!matchedUser || matchedUser.password !== password || !matchedUser.confirmed) {
-    return null
+  if (normalizedMessage.includes("email not confirmed")) {
+    return AUTH_MESSAGES.emailNotConfirmed
   }
 
-  return publicUserFromRecord(matchedUser)
-}
-
-function signPayload(payload: string) {
-  return createHmac("sha256", SESSION_SECRET).update(payload).digest("base64url")
-}
-
-export function createSessionCookieValue(user: SessionUser) {
-  const payload: SessionPayload = {
-    user,
-    expiresAt: Date.now() + SESSION_DURATION_SECONDS * 1000,
+  if (normalizedMessage.includes("invalid login credentials")) {
+    return AUTH_MESSAGES.invalidCredentials
   }
-
-  const encodedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url")
-  const signature = signPayload(encodedPayload)
-
-  return `${encodedPayload}.${signature}`
-}
-
-export function parseSessionCookieValue(cookieValue?: string) {
-  if (!cookieValue) {
-    return null
-  }
-
-  const [encodedPayload, signature] = cookieValue.split(".")
-
-  if (!encodedPayload || !signature) {
-    return null
-  }
-
-  const expectedSignature = signPayload(encodedPayload)
-  const signatureBuffer = Buffer.from(signature)
-  const expectedBuffer = Buffer.from(expectedSignature)
 
   if (
-    signatureBuffer.length !== expectedBuffer.length ||
-    !timingSafeEqual(signatureBuffer, expectedBuffer)
+    normalizedMessage.includes("password should be at least") ||
+    normalizedMessage.includes("password is too short")
   ) {
-    return null
+    return getPasswordValidationMessage("12345")
   }
 
-  try {
-    const payload = JSON.parse(
-      Buffer.from(encodedPayload, "base64url").toString("utf8")
-    ) as SessionPayload
-
-    if (!payload.user || payload.expiresAt <= Date.now()) {
-      return null
-    }
-
-    return payload.user
-  } catch {
-    return null
-  }
+  return message ?? AUTH_MESSAGES.loginFailed
 }
 
-export function getSessionCookieOptions() {
+export function validateLoginPayload(email: string, password: string) {
   return {
-    httpOnly: true,
-    sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: SESSION_DURATION_SECONDS,
+    emailError: getEmailValidationMessage(email),
+    passwordError: getPasswordValidationMessage(password),
   }
 }
 
 export async function getSessionUser() {
-  const cookieStore = await cookies()
-  const cookieValue = cookieStore.get(SESSION_COOKIE_NAME)?.value
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  return parseSessionCookieValue(cookieValue)
+  return user ? mapSupabaseUser(user) : null
 }
 
 export async function requireSessionUser() {

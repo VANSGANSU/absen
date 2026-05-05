@@ -1,12 +1,11 @@
 "use client"
 
 import {
-  BadgeCheck,
-  Bell,
   ChevronsUpDown,
-  CreditCard,
-  LogOut,
-  Sparkles,
+  CreditCardIcon,
+  LogOutIcon,
+  SettingsIcon,
+  UserIcon,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import * as React from "react"
@@ -47,6 +46,11 @@ export function NavUser({
   const router = useRouter()
   const [isLoggingOut, setIsLoggingOut] = React.useState(false)
 
+  // Reuse the existing settings page until a dedicated profile page exists.
+  const handleNavigate = (href: string) => {
+    router.push(href)
+  }
+
   const handleLogout = async () => {
     setIsLoggingOut(true)
 
@@ -68,15 +72,16 @@ export function NavUser({
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="h-auto rounded-2xl px-2 py-3 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              tooltip="Profile (Halaman Pengguna)"
+              className="h-auto rounded-2xl py-3 px-2 transition-all data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-0"
             >
-              <Avatar className="h-10 w-10 rounded-full">
+              <Avatar className="h-10 w-10 shrink-0 rounded-full">
                 <AvatarImage src={user.avatar} alt={user.name} />
                 <AvatarFallback className="rounded-full bg-black text-white">
                   {user.initials ?? "AU"}
                 </AvatarFallback>
               </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
+              <div className="grid flex-1 text-left text-sm leading-tight opacity-0 w-0 overflow-hidden whitespace-nowrap transition-all duration-300 group-data-[state=expanded]/sidebar:w-auto group-data-[state=expanded]/sidebar:opacity-100 group-data-[state=expanded]/sidebar:ml-2">
                 <span className="truncate text-base font-semibold text-black">
                   {user.name}
                 </span>
@@ -84,7 +89,7 @@ export function NavUser({
                   {user.email}
                 </span>
               </div>
-              <ChevronsUpDown className="ml-auto size-4 text-black" />
+              <ChevronsUpDown className="ml-auto size-4 text-black shrink-0 opacity-0 w-0 transition-all duration-300 group-data-[state=expanded]/sidebar:w-auto group-data-[state=expanded]/sidebar:opacity-100" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -109,29 +114,26 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <Sparkles />
-                Upgrade to Pro
+              <DropdownMenuItem onClick={() => handleNavigate("/dashboard/settings")}>
+                <UserIcon className="size-4" />
+                Profile
               </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <BadgeCheck />
-                Account
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <CreditCard />
+              <DropdownMenuItem onClick={() => handleNavigate("/dashboard/settings#billing")}>
+                <CreditCardIcon className="size-4" />
                 Billing
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Bell />
-                Notifications
+              <DropdownMenuItem onClick={() => handleNavigate("/dashboard/settings")}>
+                <SettingsIcon className="size-4" />
+                Settings
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
-              <LogOut />
+            <DropdownMenuItem
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="text-red-600 focus:bg-red-50 focus:text-red-700"
+            >
+              <LogOutIcon className="size-4" />
               {isLoggingOut ? "Logging out..." : "Log out"}
             </DropdownMenuItem>
           </DropdownMenuContent>

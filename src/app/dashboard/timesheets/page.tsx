@@ -1,1 +1,5 @@
-export { default } from "./view-edit/page"
+import { redirect } from "next/navigation"
+
+export default function TimesheetsPage() {
+  redirect("/dashboard/timesheets/view-edit")
+}

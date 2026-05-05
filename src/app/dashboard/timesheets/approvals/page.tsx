@@ -3,6 +3,7 @@
 import * as React from "react"
 import {
   CalendarDays,
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -203,6 +204,8 @@ const paymentStatusOptions = [
   "Processing",
 ]
 
+const ROWS_OPTIONS = ["10", "25", "50"] as const
+
 export default function TimesheetApprovalsPage() {
   const dateRef = React.useRef<HTMLDivElement | null>(null)
   const filterRef = React.useRef<HTMLDivElement | null>(null)
@@ -210,7 +213,9 @@ export default function TimesheetApprovalsPage() {
   const [isFilterOpen, setIsFilterOpen] = React.useState(false)
   const [isApprovalStatusOpen, setIsApprovalStatusOpen] = React.useState(false)
   const [isPaymentStatusOpen, setIsPaymentStatusOpen] = React.useState(false)
-  const [rowsPerPage, setRowsPerPage] = React.useState("10")
+  const [rowsPerPage, setRowsPerPage] = React.useState<(typeof ROWS_OPTIONS)[number]>("10")
+  const [isRowsPerPageOpen, setIsRowsPerPageOpen] = React.useState(false)
+  const rowsPerPageRef = React.useRef<HTMLDivElement | null>(null)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [selectedMember, setSelectedMember] = React.useState("")
   const [approvalStatus, setApprovalStatus] = React.useState("All Statuses")
@@ -225,6 +230,7 @@ export default function TimesheetApprovalsPage() {
   React.useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target as Node
+
       if (!dateRef.current?.contains(target)) {
         setIsDateOpen(false)
       }
@@ -233,6 +239,10 @@ export default function TimesheetApprovalsPage() {
         setIsFilterOpen(false)
         setIsApprovalStatusOpen(false)
         setIsPaymentStatusOpen(false)
+      }
+
+      if (!rowsPerPageRef.current?.contains(target)) {
+        setIsRowsPerPageOpen(false)
       }
     }
 
@@ -254,6 +264,7 @@ export default function TimesheetApprovalsPage() {
     <div className="space-y-6">
       <section className="rounded-[1rem] border border-slate-200 bg-white p-4 sm:p-6">
         <div className="max-w-[92rem] space-y-6">
+          {/* --- HEADER: Judul Halaman & Subjudul --- */}
           <div className="space-y-3">
             <h1 className="text-[1.6rem] font-semibold tracking-tight text-slate-950">
               Timesheet Approvals
@@ -264,7 +275,9 @@ export default function TimesheetApprovalsPage() {
             </div>
           </div>
 
+
           <div className="flex flex-col gap-4">
+            {/* --- DATE SETTINGS: Filter rentang waktu dan kalender popover --- */}
             <div ref={dateRef} className="relative w-full max-w-[24.25rem]">
               <button
                 type="button"
@@ -391,6 +404,7 @@ export default function TimesheetApprovalsPage() {
               ) : null}
             </div>
 
+            {/* --- FILTER BAR: Pencarian, pemilihan member, dan status pembayaran/approval --- */}
             <div className="grid gap-4 xl:max-w-[20rem]">
               <div className="space-y-2">
                 <label className="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500">
@@ -544,6 +558,7 @@ export default function TimesheetApprovalsPage() {
             </div>
           </div>
 
+          {/* --- SUMMARY CARDS: Statistik ringkasan status approval --- */}
           <div className="grid overflow-hidden rounded-[1rem] border border-slate-200 bg-white md:grid-cols-2 xl:grid-cols-4">
             {summaryCards.map((card, index) => (
               <div
@@ -560,11 +575,12 @@ export default function TimesheetApprovalsPage() {
             ))}
           </div>
 
-          <div className="overflow-hidden rounded-[1rem] border border-slate-200 bg-white">
+          {/* --- TABEL APPROVAL: Daftar pengajuan timesheet --- */}
+          <div className="rounded-[1rem] border border-slate-200 bg-white">
             <div className="overflow-x-auto">
-              <table className="min-w-[78rem] border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200 text-left text-[0.95rem] font-semibold text-slate-950">
+              <table className="w-full min-w-[78rem] border-collapse">
+                <thead className="rounded-t-[1rem]">
+                  <tr className="border-b border-slate-200 text-left text-[0.95rem] font-semibold text-slate-950 rounded-t-[1rem]">
                     <th className="w-16 px-4 py-5">
                       <div className="h-5 w-5 rounded-md border border-slate-200 bg-white" />
                     </th>
@@ -591,7 +607,7 @@ export default function TimesheetApprovalsPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-4 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-4 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between rounded-b-[1rem] bg-white p-4">
             <div className="flex flex-wrap items-center gap-5">
               <p>
                 Showing <span className="font-semibold text-slate-950">0-0</span> of{" "}
@@ -599,14 +615,36 @@ export default function TimesheetApprovalsPage() {
               </p>
               <div className="flex items-center gap-3">
                 <span>Rows per page:</span>
-                <button
-                  type="button"
-                  onClick={() => setRowsPerPage((current) => (current === "10" ? "25" : "10"))}
-                  className="inline-flex items-center gap-3 rounded-[0.85rem] border border-slate-200 bg-white px-4 py-2"
-                >
-                  {rowsPerPage}
-                  <ChevronDown className="size-4 text-slate-500" />
-                </button>
+                <div ref={rowsPerPageRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsRowsPerPageOpen(!isRowsPerPageOpen)}
+                    className="inline-flex items-center gap-3 rounded-[0.85rem] border border-slate-200 bg-white px-4 py-2 transition hover:bg-slate-50"
+                  >
+                    {rowsPerPage}
+                    <ChevronDown className={`size-4 text-slate-500 transition-transform ${isRowsPerPageOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {isRowsPerPageOpen && (
+                    <div className="absolute top-full left-0 z-50 mt-1 w-24 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
+                      {ROWS_OPTIONS.map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => {
+                            setRowsPerPage(n)
+                            setIsRowsPerPageOpen(false)
+                          }}
+                          className={`flex w-full items-center justify-between px-4 py-2 text-left text-base transition hover:bg-slate-50 ${
+                            rowsPerPage === n ? "bg-slate-50 font-semibold text-slate-950" : "text-slate-600"
+                          }`}
+                        >
+                          {n}
+                          {rowsPerPage === n && <Check className="size-4 text-black" />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

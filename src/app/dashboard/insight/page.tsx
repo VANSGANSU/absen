@@ -1,1 +1,5 @@
-export { default } from "../recap/page"
+import { redirect } from "next/navigation"
+
+export default function InsightPage() {
+  redirect("/dashboard/insight/highlights")
+}

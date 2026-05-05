@@ -1,0 +1,10 @@
+{
+  "version": 1.1,
+  "atDirectives": [
+    { "name": "@theme", "description": "Tailwind CSS v4 theme block" },
+    { "name": "@import", "description": "Tailwind CSS v4 import" },
+    { "name": "@layer", "description": "Tailwind CSS v4 layer" },
+    { "name": "@custom-variant", "description": "Tailwind CSS v4 custom variant" },
+    { "name": "@apply", "description": "Tailwind CSS v4 apply directive" }
+  ]
+}

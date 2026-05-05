@@ -1,7 +1,7 @@
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { requireSessionUser } from "@/lib/auth"
-import { AttendanceLocationAddOverview } from "@/components/attendance-location-add-overview"
+import { AttendanceLocationAddOverview } from "@/components/(attendance)/attendance-location-add-overview"
 import { LOCATION_ADD_ACCESS_COOKIE } from "@/lib/location-add-access"
 
 export default async function DashboardAttendanceLocationAddPage() {

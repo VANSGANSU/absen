@@ -1,4 +1,4 @@
-import { DashboardHomeOverview } from "@/components/dashboard-home-overview"
+import { DashboardHomeOverview } from "@/components/(dashboard)/dashboard-home-overview"
 import { requireSessionUser } from "@/lib/auth"
 
 export default async function DashboardPage() {

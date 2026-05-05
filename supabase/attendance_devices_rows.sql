@@ -1,0 +1,1 @@
+INSERT INTO "public"."attendance_devices" ("id", "user_id", "name", "serial_number", "type", "location_label", "active", "created_at", "updated_at") VALUES ('631a7ba6-bbe0-4a89-9e3e-f2e3c8d8b56f', 'a7c09734-3ef8-47f5-8156-0af67e7b10e2', 'UBIG', 'DEMO-UBIG-001', 'MOBILE', '-', true, '2026-03-25 02:00:00+00', '2026-04-17 07:57:12.955125+00');

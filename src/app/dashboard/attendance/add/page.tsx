@@ -1,6 +1,6 @@
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
-import { AttendanceAddOverview } from "@/components/attendance-add-overview"
+import { AttendanceAddOverview } from "@/components/(attendance)/attendance-add-overview"
 import { requireSessionUser } from "@/lib/auth"
 import { ATTENDANCE_ADD_ACCESS_COOKIE } from "@/lib/attendance-add-access"
 

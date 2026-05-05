@@ -18,7 +18,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-
+import { getOrganizationSettings, DEFAULT_SETTINGS, type OrganizationSettings } from "@/lib/organization-store"
+ 
 export function TeamSwitcher({
   teams,
 }: {
@@ -29,7 +30,19 @@ export function TeamSwitcher({
   }[]
 }) {
   const { isMobile } = useSidebar()
+  const [settings, setSettings] = React.useState<OrganizationSettings>(DEFAULT_SETTINGS)
   const [activeTeam, setActiveTeam] = React.useState(teams[0])
+ 
+  React.useEffect(() => {
+    // Initial sync with localStorage on mount
+    setSettings(getOrganizationSettings())
+
+    const handleUpdate = () => {
+      setSettings(getOrganizationSettings())
+    }
+    window.addEventListener("organization-settings-updated", handleUpdate)
+    return () => window.removeEventListener("organization-settings-updated", handleUpdate)
+  }, [])
 
   if (!activeTeam) {
     return null
@@ -42,23 +55,30 @@ export function TeamSwitcher({
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="h-auto rounded-2xl px-2 py-3 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              tooltip="Workspace"
+              className="h-auto rounded-2xl py-3 px-2 transition-all data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-0"
             >
-              <div className="flex h-10 w-10 flex-col items-center justify-center rounded-xl bg-[#d71920] text-white">
-                <span className="text-2xl leading-none font-bold">U</span>
-                <span className="-mt-1 text-[9px] font-bold tracking-[0.18em]">
-                  BIG
-                </span>
+              <div className="flex h-10 w-10 overflow-hidden items-center justify-center rounded-xl bg-[#d71920] text-white shrink-0 border border-slate-100">
+                {settings.logo ? (
+                  <img src={settings.logo} alt="Logo" className="size-full object-cover" />
+                ) : (
+                  <div className="flex flex-col items-center justify-center leading-none">
+                    <span className="text-2xl font-bold">U</span>
+                    <span className="-mt-1 text-[9px] font-bold tracking-[0.18em]">
+                      BIG
+                    </span>
+                  </div>
+                )}
               </div>
-              <div className="grid flex-1 text-left leading-tight">
+              <div className="grid flex-1 text-left leading-tight opacity-0 w-0 overflow-hidden whitespace-nowrap transition-all duration-300 group-data-[state=expanded]/sidebar:w-auto group-data-[state=expanded]/sidebar:opacity-100 group-data-[state=expanded]/sidebar:ml-2">
                 <span className="truncate text-[1.05rem] font-semibold text-black">
-                  {activeTeam.name}
+                  {settings.name || activeTeam.name}
                 </span>
                 <span className="truncate text-sm text-slate-600">
                   {activeTeam.plan}
                 </span>
               </div>
-              <ChevronsUpDown className="ml-auto size-4 text-black" />
+              <ChevronsUpDown className="ml-auto size-4 text-black shrink-0 opacity-0 w-0 transition-all duration-300 group-data-[state=expanded]/sidebar:w-auto group-data-[state=expanded]/sidebar:opacity-100" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent

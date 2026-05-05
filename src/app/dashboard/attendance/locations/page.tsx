@@ -1,5 +1,5 @@
 import { requireSessionUser } from "@/lib/auth"
-import { AttendanceLocationsOverview } from "@/components/attendance-locations-overview"
+import { AttendanceLocationsOverview } from "@/components/(attendance)/attendance-locations-overview"
 
 export default async function DashboardAttendanceLocationsPage() {
   await requireSessionUser()

@@ -4,7 +4,7 @@ export type AttendanceRecordEntry = {
   id: string
   memberId: string
   memberName: string
-  memberDepartment: string
+  memberGroup: string
   date: string
   checkIn: string | null
   breakIn: string | null

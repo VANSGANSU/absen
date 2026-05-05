@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server"
 
-import {
-  AUTH_MESSAGES,
-  SESSION_COOKIE_NAME,
-  createSessionCookieValue,
-  getSessionCookieOptions,
-  isUnconfirmedEmail,
-  validateCredentials,
-} from "@/lib/auth"
+import { AUTH_MESSAGES, getAuthErrorMessage, validateLoginPayload } from "@/lib/auth"
+import { normalizeEmail } from "@/lib/auth-validation"
+import { createClient } from "@/lib/supabase/server"
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as
@@ -19,36 +14,44 @@ export async function POST(request: Request) {
 
   const email = body?.email?.trim() ?? ""
   const password = body?.password ?? ""
+  const { emailError, passwordError } = validateLoginPayload(email, password)
 
-  if (!email || !password) {
+  if (emailError || passwordError) {
     return NextResponse.json(
-      { message: AUTH_MESSAGES.missingCredentials },
+      {
+        message: emailError ?? passwordError ?? AUTH_MESSAGES.loginFailed,
+        fieldErrors: {
+          email: emailError,
+          password: passwordError,
+        },
+      },
       { status: 400 }
     )
   }
 
-  if (isUnconfirmedEmail(email)) {
+  const supabase = await createClient()
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: normalizeEmail(email),
+    password,
+  })
+
+  if (error) {
+    const message = getAuthErrorMessage(error.message)
+
     return NextResponse.json(
-      { message: AUTH_MESSAGES.emailNotConfirmed },
-      { status: 403 }
+      {
+        message,
+        fieldErrors: {
+          email: message === AUTH_MESSAGES.invalidCredentials ? "" : undefined,
+          password: message === AUTH_MESSAGES.invalidCredentials ? "" : undefined,
+        },
+      },
+      { status: message === AUTH_MESSAGES.emailNotConfirmed ? 403 : 401 }
     )
   }
 
-  const user = validateCredentials(email, password)
-
-  if (!user) {
-    return NextResponse.json(
-      { message: AUTH_MESSAGES.invalidCredentials },
-      { status: 401 }
-    )
-  }
-
-  const response = NextResponse.json({ ok: true, user })
-  response.cookies.set(
-    SESSION_COOKIE_NAME,
-    createSessionCookieValue(user),
-    getSessionCookieOptions()
-  )
-
-  return response
+  return NextResponse.json({
+    ok: true,
+    user: data.user,
+  })
 }

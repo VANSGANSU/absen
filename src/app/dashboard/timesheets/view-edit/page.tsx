@@ -3,6 +3,7 @@
 import * as React from "react"
 import {
   CalendarDays,
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -49,35 +50,13 @@ type BreakEntry = {
 
 const REFERENCE_DATE = new Date("2026-04-10T09:00:00+07:00")
 const MEMBERS = ["All Members", "Miaw", "Yayan", "ReryAhmad", "Riflo"]
-const TIMESHEET_STORAGE_KEY = "absensi.timesheets.view-edit"
-
-type TimesheetRow = {
-  id: string
-  member: string
-  project: string
-  task: string
-  date: string
-  start: string
-  end: string
-  reason: string
-  billable: boolean
-  source: string
-}
-
-function loadRows(): TimesheetRow[] {
-  if (typeof window === "undefined") return []
-  try {
-    const raw = window.localStorage.getItem(TIMESHEET_STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as TimesheetRow[]) : []
-  } catch {
-    return []
-  }
-}
-
-function persistRows(rows: TimesheetRow[]) {
-  if (typeof window === "undefined") return
-  window.localStorage.setItem(TIMESHEET_STORAGE_KEY, JSON.stringify(rows))
-}
+import { createClient } from "@/lib/supabase/client"
+import {
+  fetchTimesheetRecords,
+  insertTimesheetRecord,
+  deleteTimesheetRecord,
+  type TimesheetRecord as TimesheetRow,
+} from "@/lib/dashboard-data"
 const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
 
 function cloneDate(date: Date) {
@@ -252,7 +231,11 @@ function monthTitle(year: number, month: number) {
   }).format(new Date(year, month, 1))
 }
 
+const ROWS_OPTIONS = ["10", "25", "50"] as const
+
 export default function TimesheetsViewEditPage() {
+  const supabase = React.useMemo(() => createClient(), [])
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
   const memberRef = React.useRef<HTMLDivElement | null>(null)
   const dateRef = React.useRef<HTMLDivElement | null>(null)
   const [selectedMember, setSelectedMember] = React.useState("All Members")
@@ -262,7 +245,9 @@ export default function TimesheetsViewEditPage() {
   const [isFilterOpen, setIsFilterOpen] = React.useState(false)
   const [isAddTimeOpen, setIsAddTimeOpen] = React.useState(false)
   const [viewMode, setViewMode] = React.useState<ViewMode>("Members")
-  const [rowsPerPage, setRowsPerPage] = React.useState("10")
+  const [rowsPerPage, setRowsPerPage] = React.useState<(typeof ROWS_OPTIONS)[number]>("10")
+  const [isRowsPerPageOpen, setIsRowsPerPageOpen] = React.useState(false)
+  const rowsPerPageRef = React.useRef<HTMLDivElement | null>(null)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [range, setRange] = React.useState<DateRangeValue>(getPresetRange("last_2_weeks"))
   const [filterMember, setFilterMember] = React.useState("")
@@ -286,14 +271,60 @@ export default function TimesheetsViewEditPage() {
 
   const isDrawerOpen = isFilterOpen || isAddTimeOpen
 
-  // Load data dari localStorage dengan delay 2 detik
+  const filteredRows = React.useMemo(() => {
+    let result = rows
+
+    if (selectedMember !== "All Members") {
+      result = result.filter((row) => row.member === selectedMember)
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      result = result.filter((row) => 
+        row.project?.toLowerCase().includes(q) ||
+        row.task?.toLowerCase().includes(q) ||
+        row.member?.toLowerCase().includes(q) ||
+        row.reason?.toLowerCase().includes(q)
+      )
+    }
+
+    if (range) {
+      result = result.filter((row) => {
+        const d = new Date(row.date)
+        if (isNaN(d.getTime())) return true
+        return isBetween(d, range.start, range.end)
+      })
+    }
+
+    if (filterMember) {
+      result = result.filter(r => r.member?.toLowerCase().includes(filterMember.toLowerCase()))
+    }
+    if (filterProject) {
+      result = result.filter(r => r.project?.toLowerCase().includes(filterProject.toLowerCase()))
+    }
+    if (filterSource) {
+      result = result.filter(r => r.source?.toLowerCase().includes(filterSource.toLowerCase()))
+    }
+
+    return result
+  }, [rows, selectedMember, searchQuery, range, filterMember, filterProject, filterSource])
+
+  // Load data dari database
   React.useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setRows(loadRows())
-      setIsLoading(false)
-    }, 2000)
-    return () => window.clearTimeout(timer)
-  }, [])
+    let isMounted = true
+    const load = async () => {
+      try {
+        const data = await fetchTimesheetRecords(supabase)
+        if (isMounted) setRows(data)
+      } catch (err) {
+        console.error("Failed to load timesheets:", err)
+      } finally {
+        if (isMounted) setIsLoading(false)
+      }
+    }
+    void load()
+    return () => { isMounted = false }
+  }, [supabase])
 
   React.useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -305,6 +336,10 @@ export default function TimesheetsViewEditPage() {
 
       if (!dateRef.current?.contains(target)) {
         setIsDateOpen(false)
+      }
+
+      if (!rowsPerPageRef.current?.contains(target)) {
+        setIsRowsPerPageOpen(false)
       }
     }
 
@@ -384,12 +419,14 @@ export default function TimesheetsViewEditPage() {
     <div className="space-y-6">
       <section className="flex flex-col gap-4 rounded-[1rem] border border-slate-200 bg-white p-4 sm:p-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          {/* --- HEADER: Judul Halaman --- */}
           <div>
             <h1 className="text-[1.6rem] font-semibold tracking-tight text-slate-950">
               View & Edit Timesheets
             </h1>
           </div>
 
+          {/* --- VIEW MODE: Tombol pilih tampilan (Members, Week, Day) --- */}
           <div className="inline-flex w-full rounded-lg border border-slate-200 bg-slate-50 p-1 sm:w-auto">
             {(["Members", "Week", "Day"] as ViewMode[]).map((mode) => (
               <button
@@ -408,6 +445,7 @@ export default function TimesheetsViewEditPage() {
           </div>
         </div>
 
+        {/* --- FILTER & SEARCH AREA: Kontrol pencarian, pemilihan member, dan rentang tanggal --- */}
         <div className="relative flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div className="flex flex-1 flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-center">
             <div ref={memberRef} className="relative">
@@ -619,11 +657,12 @@ export default function TimesheetsViewEditPage() {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-[0.9rem] border border-slate-200">
+        {/* --- TABEL TIMESHEET: Daftar detail pekerjaan --- */}
+        <div className="rounded-[0.9rem] border border-slate-200">
           <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-white text-left text-xs uppercase tracking-[0.12em] text-slate-500">
+            <table className="w-full min-w-[80rem] border-collapse">
+              <thead className="rounded-t-[0.9rem]">
+                <tr className="border-b border-slate-200 bg-white text-left text-xs uppercase tracking-[0.12em] text-slate-500 rounded-t-[0.9rem]">
                   <th className="w-16 px-5 py-5">
                     <div className="h-5 w-5 rounded-md border border-slate-200 bg-white" />
                   </th>
@@ -649,7 +688,7 @@ export default function TimesheetsViewEditPage() {
                       </div>
                     </td>
                   </tr>
-                ) : rows.length === 0 ? (
+                ) : filteredRows.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="h-64 px-5 py-10 text-center">
                       <div className="flex flex-col items-center gap-3">
@@ -666,7 +705,7 @@ export default function TimesheetsViewEditPage() {
                     </td>
                   </tr>
                 ) : (
-                  rows.map((row) => (
+                  filteredRows.map((row) => (
                     <tr key={row.id} className="border-t border-slate-200 transition hover:bg-slate-50">
                       <td className="px-5 py-4">
                         <div className="h-5 w-5 rounded-md border border-slate-200 bg-white" />
@@ -692,12 +731,20 @@ export default function TimesheetsViewEditPage() {
                       <td className="px-5 py-4">
                         <button
                           type="button"
-                          onClick={() => {
-                            const updated = rows.filter((r) => r.id !== row.id)
-                            persistRows(updated)
-                            setRows(updated)
+                          disabled={isSubmitting}
+                          onClick={async () => {
+                            try {
+                              setIsSubmitting(true)
+                              await deleteTimesheetRecord(supabase, row.id)
+                              const updated = await fetchTimesheetRecords(supabase)
+                              setRows(updated)
+                            } catch (err) {
+                              console.error(err)
+                            } finally {
+                              setIsSubmitting(false)
+                            }
                           }}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-400 transition hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
                           aria-label="Delete row"
                         >
                           <Trash2 className="size-4" />
@@ -710,22 +757,47 @@ export default function TimesheetsViewEditPage() {
             </table>
           </div>
 
-          <div className="flex flex-col gap-4 border-t border-slate-200 px-5 py-4 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+          {/* --- PAGINATION: Kontrol navigasi halaman --- */}
+          <div className="flex flex-col gap-4 border-t border-slate-200 px-5 py-4 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between rounded-b-[0.9rem] bg-white">
             <div className="flex flex-wrap items-center gap-5">
               <p>
-                Showing <span className="font-semibold text-slate-950">0-0</span> of{" "}
-                <span className="font-semibold text-slate-950">0</span> data
+                Showing <span className="font-semibold text-slate-950">
+                  {filteredRows.length > 0 ? 1 : 0}-{Math.min(parseInt(rowsPerPage, 10), filteredRows.length)}
+                </span> of{" "}
+                <span className="font-semibold text-slate-950">{filteredRows.length}</span> data
               </p>
               <div className="flex items-center gap-3">
                 <span>Rows per page:</span>
-                <button
-                  type="button"
-                  onClick={() => setRowsPerPage((current) => (current === "10" ? "25" : "10"))}
-                  className="inline-flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-2"
-                >
-                  {rowsPerPage}
-                  <ChevronDown className="size-4 text-slate-500" />
-                </button>
+                <div ref={rowsPerPageRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsRowsPerPageOpen(!isRowsPerPageOpen)}
+                    className="inline-flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-2 transition hover:bg-slate-50"
+                  >
+                    {rowsPerPage}
+                    <ChevronDown className={`size-4 text-slate-500 transition-transform ${isRowsPerPageOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {isRowsPerPageOpen && (
+                    <div className="absolute top-full left-0 z-50 mt-1 w-24 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
+                      {ROWS_OPTIONS.map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => {
+                            setRowsPerPage(n)
+                            setIsRowsPerPageOpen(false)
+                          }}
+                          className={`flex w-full items-center justify-between px-4 py-2 text-left text-base transition hover:bg-slate-50 ${
+                            rowsPerPage === n ? "bg-slate-50 font-semibold text-slate-950" : "text-slate-600"
+                          }`}
+                        >
+                          {n}
+                          {rowsPerPage === n && <Check className="size-4 text-black" />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1089,10 +1161,10 @@ export default function TimesheetsViewEditPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
+                    disabled={isSubmitting}
+                    onClick={async () => {
                       if (!addTimeProject) return
-                      const newRow: TimesheetRow = {
-                        id: `ts_${Date.now()}`,
+                      const newRow: Omit<TimesheetRow, "id"> = {
                         member: addTimeMember,
                         project: addTimeProject,
                         task: addTimeTask,
@@ -1103,22 +1175,31 @@ export default function TimesheetsViewEditPage() {
                         billable: isBillable,
                         source: "Manual",
                       }
-                      const updated = [newRow, ...rows]
-                      persistRows(updated)
-                      setRows(updated)
-                      setIsAddTimeOpen(false)
-                      // Reset form
+                      
+                      try {
+                        setIsSubmitting(true)
+                        await insertTimesheetRecord(supabase, newRow)
+                        const freshData = await fetchTimesheetRecords(supabase)
+                        setRows(freshData)
+                        setIsAddTimeOpen(false)
+                        // Reset form
                       setAddTimeMember("")
                       setAddTimeProject("")
-                      setAddTimeTask("-- No Task --")
-                      setAddTimeReason("")
-                      setBreakEntries([])
-                      setIsWorkBreak(false)
+                        setAddTimeMember("")
+                        setAddTimeProject("")
+                        setAddTimeTask("-- No Task --")
+                        setAddTimeReason("")
+                        setBreakEntries([])
+                        setIsWorkBreak(false)
+                      } catch (err) {
+                        console.error("Failed to insert timesheet:", err)
+                      } finally {
+                        setIsSubmitting(false)
+                      }
                     }}
-                    disabled={!addTimeProject}
-                    className="rounded-[0.95rem] bg-black px-6 py-3 text-[1.05rem] font-medium text-white disabled:opacity-50"
+                    className="rounded-[0.95rem] bg-black px-6 py-3 font-medium text-white shadow-sm hover:bg-slate-900 disabled:opacity-50"
                   >
-                    Add Time
+                    {isSubmitting ? "Adding..." : "Add Time"}
                   </button>
                 </div>
               </div>
